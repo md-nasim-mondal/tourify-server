@@ -7,7 +7,7 @@ import { fileUploader } from "../../../helpers/fileUploader";
 import { prisma } from "../../../shared/prisma";
 import { IAuthUser } from "../../interfaces/common";
 import { paginationHelper } from "../../../helpers/paginationHelper";
-import { userSearchAbleFields } from "./user.constant";
+import { userSearchAbleFields } from "./user.constants";
 import ApiError from "../../errors/ApiError";
 
 // 1. Create Admin (Only by Super Admin)
