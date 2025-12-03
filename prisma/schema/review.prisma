@@ -1,0 +1,16 @@
+model Review {
+  id        String   @id @default(uuid())
+  rating    Float      // 1 to 5 stars
+  comment   String
+  
+  // Relations
+  touristId String
+  tourist   User     @relation(fields: [touristId], references: [id], onDelete: Cascade)
+
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}

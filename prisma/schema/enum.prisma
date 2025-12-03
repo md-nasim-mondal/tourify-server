@@ -1,0 +1,27 @@
+// User Roles
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  GUIDE
+  TOURIST
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+  BLOCKED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// Booking Status
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}

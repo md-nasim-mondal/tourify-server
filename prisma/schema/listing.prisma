@@ -1,0 +1,20 @@
+model Listing {
+    id          String   @id @default(uuid())
+    title       String
+    description String
+    location    String
+    price       Float
+    images      String[]
+
+    // Relations
+    guideId String
+    guide   User   @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+    bookings Booking[]
+    reviews  Review[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("listings")
+}
