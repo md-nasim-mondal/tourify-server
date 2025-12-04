@@ -1,0 +1,16 @@
+model Payment {
+  id            String        @id @default(uuid())
+  transactionId String        @unique
+  amount        Float
+  status        PaymentStatus @default(PENDING)
+  paymentGatewayData Json?    // স্ট্রাইপ বা SSLCommerz এর রেস্পন্স সেভ রাখার জন্য
+
+  // Relations
+  bookingId     String        @unique // এক বুকিং এর একটিই পেমেন্ট হবে
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("payments")
+}
