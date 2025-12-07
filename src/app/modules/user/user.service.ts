@@ -2,7 +2,7 @@ import { UserRole, UserStatus, Prisma } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { Request } from "express";
 import httpStatus from "http-status";
-import { config } from "../../../config";
+import envVars from "../../../config/env";
 import { fileUploader } from "../../../helpers/fileUploader";
 import { prisma } from "../../../shared/prisma";
 import { IAuthUser } from "../../interfaces/common";
@@ -21,7 +21,7 @@ const createAdmin = async (req: Request) => {
 
   const hashedPassword = await bcrypt.hash(
     req.body.password,
-    Number(config.bcrypt.SALT_ROUND)
+    Number(envVars.bcrypt.SALT_ROUND)
   );
 
   return await prisma.user.create({
@@ -49,7 +49,7 @@ const createGuide = async (req: Request) => {
 
   const hashedPassword = await bcrypt.hash(
     req.body.password,
-    Number(config.bcrypt.SALT_ROUND)
+    Number(envVars.bcrypt.SALT_ROUND)
   );
 
   return await prisma.user.create({

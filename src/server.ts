@@ -1,19 +1,18 @@
 /* eslint-disable no-console */
 import { Server } from "http";
 import app from "./app";
-import { config } from "./config";
+import envVars from "./config/env";
 
 let server: Server;
 
 async function main() {
   try {
-    server = app.listen(config.PORT, () => {
-      console.log(`🚀 Tourify Server is running on port ${config.PORT}`);
+    server = app.listen(envVars.PORT, () => {
+      console.log(`🚀 Tourify Server is running on port ${envVars.PORT}`);
     });
 
     // Optional: Seed Super Admin
     // await seedSuperAdmin();
-
   } catch (err) {
     console.log("Error starting server:", err);
   }

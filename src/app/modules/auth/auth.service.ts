@@ -2,9 +2,9 @@ import { UserRole, UserStatus } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import httpStatus from "http-status";
 import { Secret } from "jsonwebtoken";
-import {config} from "../../../config";
+import envVars from "../../../config/env";
 import { jwtHelpers } from "../../../helpers/jwtHelpers";
-import {prisma} from "../../../shared/prisma";
+import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
 import emailSender from "../../utils/emailSender";
 
@@ -20,7 +20,7 @@ const registerUser = async (payload: any) => {
 
   const hashedPassword = await bcrypt.hash(
     payload.password,
-    Number(config.bcrypt.SALT_ROUND)
+    Number(envVars.bcrypt.SALT_ROUND)
   );
 
   // Default Role: TOURIST, Status: ACTIVE, Verified: FALSE
@@ -31,7 +31,7 @@ const registerUser = async (payload: any) => {
       name: payload.name,
       role: UserRole.TOURIST,
       status: UserStatus.ACTIVE,
-      isVerified: false, 
+      isVerified: false,
       contactNo: payload.contactNo,
       address: payload.address,
     },
@@ -40,12 +40,12 @@ const registerUser = async (payload: any) => {
   // Generate Verification Token (1 Day Validity)
   const verifyToken = jwtHelpers.generateToken(
     { email: newUser.email, role: newUser.role, id: newUser.id },
-    config.jwt.JWT_SECRET as Secret,
-    "1d" 
+    envVars.jwt.JWT_SECRET as Secret,
+    "1d"
   );
 
   // Send Email
-  const verifyLink = `${config.CLIENT_URL}/verify-email?token=${verifyToken}`;
+  const verifyLink = `${envVars.CLIENT_URL}/verify-email?token=${verifyToken}`;
   await emailSender(
     newUser.email,
     `
@@ -60,7 +60,7 @@ const registerUser = async (payload: any) => {
   return {
     id: newUser.id,
     email: newUser.email,
-    message: "Registration successful. Please check your email to verify."
+    message: "Registration successful. Please check your email to verify.",
   };
 };
 
@@ -68,7 +68,10 @@ const registerUser = async (payload: any) => {
 const verifyEmail = async (token: string) => {
   let decodedData;
   try {
-    decodedData = jwtHelpers.verifyToken(token, config.jwt.JWT_SECRET as Secret);
+    decodedData = jwtHelpers.verifyToken(
+      token,
+      envVars.jwt.JWT_SECRET as Secret
+    );
   } catch (_err) {
     throw new ApiError(httpStatus.FORBIDDEN, "Invalid or Expired Token!");
   }
@@ -113,14 +116,14 @@ const loginUser = async (payload: { email: string; password: string }) => {
 
   const accessToken = jwtHelpers.generateToken(
     { email: userData.email, role: userData.role, id: userData.id },
-    config.jwt.JWT_SECRET as Secret,
-    config.jwt.ACCESS_TOKEN_EXPIRES_IN as string
+    envVars.jwt.JWT_SECRET as Secret,
+    envVars.jwt.ACCESS_TOKEN_EXPIRES_IN as string
   );
 
   const refreshToken = jwtHelpers.generateToken(
     { email: userData.email, role: userData.role, id: userData.id },
-    config.jwt.REFRESH_TOKEN_SECRET as Secret,
-    config.jwt.REFRESH_TOKEN_EXPIRES_IN as string
+    envVars.jwt.REFRESH_TOKEN_SECRET as Secret,
+    envVars.jwt.REFRESH_TOKEN_EXPIRES_IN as string
   );
 
   return {
@@ -136,7 +139,7 @@ const refreshToken = async (token: string) => {
   try {
     decodedData = jwtHelpers.verifyToken(
       token,
-      config.jwt.REFRESH_TOKEN_SECRET as Secret
+      envVars.jwt.REFRESH_TOKEN_SECRET as Secret
     );
   } catch (_err) {
     throw new ApiError(httpStatus.FORBIDDEN, "Invalid Refresh Token");
@@ -148,8 +151,8 @@ const refreshToken = async (token: string) => {
 
   const accessToken = jwtHelpers.generateToken(
     { email: userData.email, role: userData.role, id: userData.id },
-    config.jwt.JWT_SECRET as Secret,
-    config.jwt.ACCESS_TOKEN_EXPIRES_IN as string
+    envVars.jwt.JWT_SECRET as Secret,
+    envVars.jwt.ACCESS_TOKEN_EXPIRES_IN as string
   );
 
   return { accessToken };
@@ -172,7 +175,7 @@ const changePassword = async (user: any, payload: any) => {
 
   const hashedPassword = await bcrypt.hash(
     payload.newPassword,
-    Number(config.bcrypt.SALT_ROUND)
+    Number(envVars.bcrypt.SALT_ROUND)
   );
 
   await prisma.user.update({
@@ -194,11 +197,11 @@ const forgotPassword = async (payload: { email: string }) => {
 
   const resetPassToken = jwtHelpers.generateToken(
     { email: userData.email, role: userData.role, id: userData.id },
-    config.jwt.RESET_PASS_SECRET as Secret,
-    config.jwt.RESET_PASS_TOKEN_EXPIRES_IN as string
+    envVars.jwt.RESET_PASS_SECRET as Secret,
+    envVars.jwt.RESET_PASS_TOKEN_EXPIRES_IN as string
   );
 
-  const resetPassLink = `${config.CLIENT_URL}/reset-password?userId=${userData.id}&token=${resetPassToken}`;
+  const resetPassLink = `${envVars.CLIENT_URL}/reset-password?userId=${userData.id}&token=${resetPassToken}`;
 
   await emailSender(
     userData.email,
@@ -216,14 +219,17 @@ const forgotPassword = async (payload: { email: string }) => {
 const resetPassword = async (token: string, payload: { password: string }) => {
   let decodedData;
   try {
-    decodedData = jwtHelpers.verifyToken(token, config.jwt.RESET_PASS_SECRET as Secret);
+    decodedData = jwtHelpers.verifyToken(
+      token,
+      envVars.jwt.RESET_PASS_SECRET as Secret
+    );
   } catch (_err) {
     throw new ApiError(httpStatus.FORBIDDEN, "Expired or Invalid Token");
   }
 
   const hashedPassword = await bcrypt.hash(
     payload.password,
-    Number(config.bcrypt.SALT_ROUND)
+    Number(envVars.bcrypt.SALT_ROUND)
   );
 
   await prisma.user.update({

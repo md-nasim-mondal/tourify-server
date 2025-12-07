@@ -122,4 +122,5 @@ const loadEnvVariables = (): EnvConfig => {
   };
 };
 
-export const config = loadEnvVariables();
+const envVars = loadEnvVariables();
+export default envVars;

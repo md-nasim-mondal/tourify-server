@@ -2,7 +2,7 @@ import httpStatus from "http-status";
 import { NextFunction, Request, Response } from "express";
 import { jwtHelpers } from "../../helpers/jwtHelpers";
 import ApiError from "../errors/ApiError";
-import { config } from "../../config";
+import envVars from "../../config/env";
 import type { Secret } from "jsonwebtoken";
 
 const auth = (...roles: string[]) => {
@@ -20,7 +20,7 @@ const auth = (...roles: string[]) => {
 
       const verifiedUser = jwtHelpers.verifyToken(
         token,
-        config.jwt.JWT_SECRET as Secret
+        envVars.jwt.JWT_SECRET as Secret
       );
 
       req.user = verifiedUser;

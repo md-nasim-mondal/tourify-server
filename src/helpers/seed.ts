@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { UserRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
-import { config } from "../config";
+import envVars from "../config/env";
 import { prisma } from "../shared/prisma";
 
 const seedSuperAdmin = async () => {
@@ -19,7 +19,7 @@ const seedSuperAdmin = async () => {
 
     const hashedPassword = await bcrypt.hash(
       "123456",
-      Number(config.bcrypt.SALT_ROUND)
+      Number(envVars.bcrypt.SALT_ROUND)
     );
 
     const superAdminData = await prisma.user.create({

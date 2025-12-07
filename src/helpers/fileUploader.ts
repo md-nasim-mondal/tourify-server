@@ -1,7 +1,7 @@
 import multer from "multer";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
-import { config } from "../config";
+import envVars from "../config/env";
 import fs from "fs";
 
 const storage = multer.diskStorage({
@@ -16,9 +16,9 @@ const storage = multer.diskStorage({
 async function uploadToCloudinary(file: Express.Multer.File) {
   // Configuration
   cloudinary.config({
-    cloud_name: config.cloudinary.CLOUDINARY_CLOUD_NAME as string,
-    api_key: config.cloudinary.CLOUDINARY_API_KEY as string,
-    api_secret: config.cloudinary.CLOUDINARY_API_SECRET as string,
+    cloud_name: envVars.cloudinary.CLOUDINARY_CLOUD_NAME as string,
+    api_key: envVars.cloudinary.CLOUDINARY_API_KEY as string,
+    api_secret: envVars.cloudinary.CLOUDINARY_API_SECRET as string,
   });
 
   // Upload an image

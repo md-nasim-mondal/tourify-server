@@ -1,4 +1,4 @@
 import Stripe from "stripe";
-import {config} from "../config";
+import envVars from "../config/env";
 
-export const stripe = new Stripe(config.STRIPE_SECRET_KEY as string);
+export const stripe = new Stripe(envVars.STRIPE_SECRET_KEY as string);
