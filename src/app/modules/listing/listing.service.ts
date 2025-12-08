@@ -4,7 +4,7 @@ import { IAuthUser } from "../../interfaces/common";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
-import { listingSearchableFields } from "./listing.constants";
+import { listingSearchableFields, listingCategories, listingLanguages } from "./listing.constants";
 import { fileUploader } from "../../../helpers/fileUploader";
 
 // 1. Create Listing
@@ -16,6 +16,30 @@ const createListing = async (req: any, user: IAuthUser) => {
     throw new ApiError(httpStatus.FORBIDDEN, "Please signIn first!");
   }
 
+  // Validate category
+  if (req.body.category && !listingCategories.includes(req.body.category)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  }
+
+  // Validate languages
+  if (req.body.languages) {
+    const languagesArray = Array.isArray(req.body.languages) 
+      ? req.body.languages 
+      : [req.body.languages];
+    
+    const invalidLanguages = languagesArray.filter(
+      (lang: string) => !listingLanguages.includes(lang)
+    );
+    
+    if (invalidLanguages.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST, 
+        `Invalid language(s): ${invalidLanguages.join(", ")}`
+      );
+    }
+  }
+
+  // Upload images
   if (files && files.length > 0) {
     for (const file of files) {
       const uploaded = await fileUploader.uploadToCloudinary(file);
@@ -27,13 +51,30 @@ const createListing = async (req: any, user: IAuthUser) => {
 
   const result = await prisma.listing.create({
     data: {
-      ...req.body,
-      price: Number(req.body.price), // Ensure price is number
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      price: Number(req.body.price),
+      duration: req.body.duration,
+      maxGroupSize: req.body.maxGroupSize ? Number(req.body.maxGroupSize) : null,
+      category: req.body.category,
+      languages: req.body.languages ? (Array.isArray(req.body.languages) ? req.body.languages : [req.body.languages]) : [],
+      meetingPoint: req.body.meetingPoint,
       images: imagePaths,
-      guideId: user.id, // Set the guide who created this
+      guideId: user.id,
     },
     include: {
-      guide: true,
+      guide: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+          bio: true,
+          languagesSpoken: true,
+          expertise: true,
+        },
+      },
     },
   });
 
@@ -43,7 +84,7 @@ const createListing = async (req: any, user: IAuthUser) => {
 // 2. Get All Listings (Public + Filter + Search)
 const getAllListings = async (params: any, options: any) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
-  const { searchTerm, minPrice, maxPrice, ...filterData } = params;
+  const { searchTerm, minPrice, maxPrice, category, language, ...filterData } = params;
 
   const andConditions: Prisma.ListingWhereInput[] = [];
 
@@ -62,6 +103,16 @@ const getAllListings = async (params: any, options: any) => {
   }
   if (maxPrice) {
     andConditions.push({ price: { lte: Number(maxPrice) } });
+  }
+
+  // Category Filter
+  if (category) {
+    andConditions.push({ category: { equals: category } });
+  }
+
+  // Language Filter
+  if (language) {
+    andConditions.push({ languages: { has: language } });
   }
 
   // Exact Match Filters (e.g., location)
@@ -86,17 +137,55 @@ const getAllListings = async (params: any, options: any) => {
     include: {
       guide: {
         select: {
+          id: true,
           name: true,
           email: true,
           photo: true,
+          bio: true,
+          languagesSpoken: true,
+          expertise: true,
+        },
+      },
+      reviews: {
+        select: {
+          rating: true,
+          comment: true,
+          createdAt: true,
+        },
+      },
+      _count: {
+        select: {
+          reviews: true,
+          bookings: true,
         },
       },
     },
   });
 
+  // Calculate average rating for each listing
+  const listingsWithRating = result.map((listing) => {
+    const totalRating = listing.reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = listing.reviews.length > 0 
+      ? (totalRating / listing.reviews.length).toFixed(1) 
+      : "0.0";
+    
+    return {
+      ...listing,
+      averageRating: parseFloat(averageRating),
+      totalReviews: listing.reviews.length,
+    };
+  });
+
   const total = await prisma.listing.count({ where: whereConditions });
 
-  return { meta: { page, limit, total }, data: result };
+  return { 
+    meta: { page, limit, total }, 
+    data: listingsWithRating,
+    filters: {
+      categories: listingCategories,
+      languages: listingLanguages,
+    }
+  };
 };
 
 // 3. Get Single Listing
@@ -111,12 +200,48 @@ const getSingleListing = async (id: string) => {
           email: true,
           photo: true,
           bio: true,
+          contactNo: true,
+          languagesSpoken: true,
+          expertise: true,
+          _count: {
+            select: {
+              listings: true,
+              reviews: true,
+            },
+          },
         },
       },
-      reviews: true, // Include reviews if any
+      reviews: {
+        include: {
+          tourist: {
+            select: {
+              name: true,
+              photo: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      _count: {
+        select: {
+          reviews: true,
+          bookings: true,
+        },
+      },
     },
   });
-  return result;
+
+  // Calculate average rating
+  const totalRating = result.reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating = result.reviews.length > 0 
+    ? (totalRating / result.reviews.length).toFixed(1) 
+    : "0.0";
+
+  return {
+    ...result,
+    averageRating: parseFloat(averageRating),
+    totalReviews: result.reviews.length,
+  };
 };
 
 // 4. Update Listing (Only Owner Guide)
@@ -135,9 +260,52 @@ const updateListing = async (id: string, payload: any, user: IAuthUser) => {
     );
   }
 
+  // Validate category if provided
+  if (payload.category && !listingCategories.includes(payload.category)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  }
+
+  // Validate languages if provided
+  if (payload.languages) {
+    const languagesArray = Array.isArray(payload.languages) 
+      ? payload.languages 
+      : [payload.languages];
+    
+    const invalidLanguages = languagesArray.filter(
+      (lang: string) => !listingLanguages.includes(lang)
+    );
+    
+    if (invalidLanguages.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST, 
+        `Invalid language(s): ${invalidLanguages.join(", ")}`
+      );
+    }
+  }
+
+  // Convert price to number if provided
+  if (payload.price) {
+    payload.price = Number(payload.price);
+  }
+
+  // Convert maxGroupSize to number if provided
+  if (payload.maxGroupSize) {
+    payload.maxGroupSize = Number(payload.maxGroupSize);
+  }
+
   const result = await prisma.listing.update({
     where: { id },
     data: payload,
+    include: {
+      guide: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+        },
+      },
+    },
   });
 
   return result;
@@ -170,10 +338,22 @@ const deleteListing = async (id: string, user: IAuthUser) => {
   return result;
 };
 
+// 6. Get Categories
+const getCategories = async () => {
+  return listingCategories;
+};
+
+// 7. Get Languages
+const getLanguages = async () => {
+  return listingLanguages;
+};
+
 export const ListingService = {
   createListing,
   getAllListings,
   getSingleListing,
   updateListing,
   deleteListing,
+  getCategories,
+  getLanguages,
 };

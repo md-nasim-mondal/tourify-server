@@ -1,7 +1,7 @@
 model User {
   id                 String     @id @default(uuid())
   email              String     @unique
-  password           String?   
+  password           String?
   name               String
   role               UserRole   @default(TOURIST)
   needPasswordChange Boolean    @default(false)
@@ -11,8 +11,13 @@ model User {
   bio                String?
   contactNo          String?
   address            String?
-  gender             Gender?    
-
+  gender             Gender?
+  
+  // Guide Specific Fields (নতুন যোগ করা)
+  expertise          String[]     @default([])     // ["History", "Food", "Adventure"]
+  languagesSpoken    String[]     @default([])     // ["English", "Spanish", "Bengali"]
+  dailyRate          Float?        // Guide এর daily charge
+  
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 

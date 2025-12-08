@@ -1,20 +1,27 @@
 model Listing {
-    id          String   @id @default(uuid())
-    title       String
-    description String
-    location    String
-    price       Float
-    images      String[]
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  location    String
+  price       Float
+  
+  // নতুন ফিল্ডস (রিকোয়ারমেন্ট অনুযায়ী)
+  duration      String?    // "3 hours", "Full day"
+  maxGroupSize  Int?       // সর্বোচ্চ কতজন
+  category      String?    // "Food", "Adventure", "History"
+  languages     String[]   @default([])  // ["English", "Spanish"]
+  meetingPoint  String?    // মিটিং পয়েন্ট
+  
+  images      String[]
 
-    // Relations
-    guideId String
-    guide   User   @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  // Relations
+  guideId     String
+  guide       User    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  reviews     Review[]
 
-    bookings Booking[]
-    reviews  Review[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@map("listings")
+  @@map("listings")
 }

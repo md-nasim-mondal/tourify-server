@@ -28,6 +28,13 @@ router.post(
 router.patch(
   "/:id",
   auth(UserRole.GUIDE),
+  fileUploader.upload.array("images", 5), // Allow image updates
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.body.data) {
+      req.body = JSON.parse(req.body.data);
+    }
+    next();
+  },
   validateRequest(ListingValidation.updateListingValidation),
   ListingController.updateListing
 );
@@ -44,5 +51,11 @@ router.get("/", ListingController.getAllListings);
 
 // Get Single Listing (Public)
 router.get("/:id", ListingController.getSingleListing);
+
+// Get Categories (Public)
+router.get("/categories/list", ListingController.getCategories);
+
+// Get Languages (Public)
+router.get("/languages/list", ListingController.getLanguages);
 
 export const ListingRoutes = router;

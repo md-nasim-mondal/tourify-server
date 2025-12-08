@@ -18,13 +18,14 @@ const createBooking = async (payload: any, user: IAuthUser) => {
   // Check if listing exists
   const listing = await prisma.listing.findUnique({
     where: { id: payload.listingId },
+    include: { guide: true },
   });
 
   if (!listing) {
     throw new ApiError(httpStatus.NOT_FOUND, "Listing not found!");
   }
 
-  // Prevent Guide from booking their own listing (Optional logic)
+  // Prevent Guide from booking their own listing
   if (listing.guideId === user.id) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -32,12 +33,55 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     );
   }
 
+  // Check if listing has maxGroupSize
+  const bookingDate = new Date(payload.date);
+  
+  // Check for existing bookings on same date
+  const existingBookings = await prisma.booking.findMany({
+    where: {
+      listingId: payload.listingId,
+      date: {
+        gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
+        lt: new Date(bookingDate.setHours(23, 59, 59, 999)),
+      },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+    },
+  });
+
+  // Check maxGroupSize limit
+  if (listing.maxGroupSize && existingBookings.length >= listing.maxGroupSize) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "This tour is fully booked for the selected date!"
+    );
+  }
+
   const result = await prisma.booking.create({
     data: {
       listingId: payload.listingId,
       touristId: user.id,
-      date: new Date(payload.date),
+      date: bookingDate,
       status: BookingStatus.PENDING,
+      totalPrice: listing.price,
+    },
+    include: {
+      listing: {
+        include: {
+          guide: {
+            select: {
+              name: true,
+              email: true,
+              contactNo: true,
+            },
+          },
+        },
+      },
+      tourist: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
     },
   });
 
