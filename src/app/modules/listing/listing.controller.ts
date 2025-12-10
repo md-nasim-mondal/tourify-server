@@ -43,7 +43,7 @@ const updateListing = catchAsync(
   async (req: Request & { user?: IAuthUser }, res: Response) => {
     const result = await ListingService.updateListing(
       req.params.id as string,
-      req.body,
+      req,
       req.user as IAuthUser
     );
     sendResponse(res, {
@@ -90,6 +90,16 @@ const getLanguages = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMapData = catchAsync(async (req: Request, res: Response) => {
+  const result = await ListingService.getMapData(req.query);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Map data fetched successfully!",
+    data: result,
+  });
+});
+
 export const ListingController = {
   createListing,
   getAllListings,
@@ -98,4 +108,5 @@ export const ListingController = {
   deleteListing,
   getCategories,
   getLanguages,
+  getMapData,
 };

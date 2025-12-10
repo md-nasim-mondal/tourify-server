@@ -116,7 +116,50 @@ const getAllUsers = async (params: any, options: any) => {
   return { meta: { page, limit, total }, data: result };
 };
 
-// 4. Get My Profile
+// 4. Get Single User
+const getSingleUser = async (id: string) => {
+  return await prisma.user.findUniqueOrThrow({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      status: true,
+      isVerified: true,
+      photo: true,
+      bio: true,
+      contactNo: true,
+      address: true,
+      gender: true,
+      expertise: true,
+      languagesSpoken: true,
+      dailyRate: true,
+      travelPreferences: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+};
+
+// Public user view (limited fields)
+const getPublicUser = async (id: string) => {
+  return await prisma.user.findUniqueOrThrow({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      photo: true,
+      bio: true,
+      role: true,
+      isVerified: true,
+      languagesSpoken: true,
+      expertise: true,
+    },
+  });
+};
+
+// 5. Get My Profile
 const getMyProfile = async (user: IAuthUser) => {
   return await prisma.user.findUniqueOrThrow({
     where: { email: user?.email as string, status: UserStatus.ACTIVE },
@@ -126,17 +169,23 @@ const getMyProfile = async (user: IAuthUser) => {
       email: true,
       role: true,
       status: true,
+      isVerified: true,
       photo: true,
       bio: true,
       contactNo: true,
       address: true,
+      gender: true,
+      expertise: true,
+      languagesSpoken: true,
+      dailyRate: true,
+      travelPreferences: true,
       createdAt: true,
       updatedAt: true,
     },
   });
 };
 
-// 5. Update My Profile
+// 6. Update My Profile
 const updateMyProfile = async (user: IAuthUser, req: Request) => {
   const userInfo = await prisma.user.findUniqueOrThrow({
     where: { email: user?.email as string, status: UserStatus.ACTIVE },
@@ -148,13 +197,64 @@ const updateMyProfile = async (user: IAuthUser, req: Request) => {
     req.body.photo = uploaded?.secure_url;
   }
 
+  if (req.body.languagesSpoken && typeof req.body.languagesSpoken === 'string') {
+    req.body.languagesSpoken = req.body.languagesSpoken.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.expertise && typeof req.body.expertise === 'string') {
+    req.body.expertise = req.body.expertise.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.travelPreferences && typeof req.body.travelPreferences === 'string') {
+    req.body.travelPreferences = req.body.travelPreferences.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.dailyRate && typeof req.body.dailyRate === 'string') {
+    req.body.dailyRate = parseFloat(req.body.dailyRate);
+  }
+
   return await prisma.user.update({
     where: { email: userInfo.email },
     data: req.body,
   });
 };
 
-// 6. Change User Status (With Security Check)
+// 7. Update User (by Admin)
+const updateUser = async (id: string, req: Request) => {
+  const userData = await prisma.user.findUniqueOrThrow({ where: { id } });
+
+  const file = req.file;
+  if (file) {
+    const uploaded = await fileUploader.uploadToCloudinary(file);
+    req.body.photo = uploaded?.secure_url;
+  }
+
+  if (req.body.languagesSpoken && typeof req.body.languagesSpoken === 'string') {
+    req.body.languagesSpoken = req.body.languagesSpoken.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.expertise && typeof req.body.expertise === 'string') {
+    req.body.expertise = req.body.expertise.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.travelPreferences && typeof req.body.travelPreferences === 'string') {
+    req.body.travelPreferences = req.body.travelPreferences.split(",").map((s: string) => s.trim());
+  }
+  if (req.body.dailyRate && typeof req.body.dailyRate === 'string') {
+    req.body.dailyRate = parseFloat(req.body.dailyRate);
+  }
+
+  // Handle password change if provided
+  if (req.body.password) {
+    req.body.password = await bcrypt.hash(
+      req.body.password,
+      Number(envVars.bcrypt.SALT_ROUND)
+    );
+  }
+
+  return await prisma.user.update({
+    where: { id },
+    data: req.body,
+  });
+};
+
+
+// 8. Change User Status (With Security Check)
 const changeUserStatus = async (
   id: string,
   status: UserStatus,
@@ -179,7 +279,7 @@ const changeUserStatus = async (
   });
 };
 
-// 7. Change User Role (With Security Check)
+// 9. Change User Role (With Security Check)
 const changeUserRole = async (
   id: string,
   role: UserRole,
@@ -208,8 +308,11 @@ export const UserService = {
   createAdmin,
   createGuide,
   getAllUsers,
+  getSingleUser,
+  getPublicUser,
   getMyProfile,
   updateMyProfile,
+  updateUser,
   changeUserStatus,
   changeUserRole,
 };

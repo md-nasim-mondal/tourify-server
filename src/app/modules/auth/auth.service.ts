@@ -23,18 +23,33 @@ const registerUser = async (payload: any) => {
     Number(envVars.bcrypt.SALT_ROUND)
   );
 
-  // Default Role: TOURIST, Status: ACTIVE, Verified: FALSE
+  const userData: any = {
+    email: payload.email,
+    password: hashedPassword,
+    name: payload.name,
+    role: payload.role || UserRole.TOURIST,
+    status: UserStatus.ACTIVE,
+    isVerified: false,
+    contactNo: payload.contactNo,
+    address: payload.address,
+  };
+
+  // Conditionally add guide-specific fields
+  if (payload.role === UserRole.GUIDE) {
+    userData.expertise = payload.expertise
+      ? payload.expertise.split(",").map((item: string) => item.trim())
+      : [];
+    userData.languagesSpoken = payload.languagesSpoken
+      ? payload.languagesSpoken.split(",").map((item: string) => item.trim())
+      : [];
+    userData.dailyRate = payload.dailyRate
+      ? parseFloat(payload.dailyRate)
+      : null;
+    userData.bio = payload.bio || null;
+  }
+
   const newUser = await prisma.user.create({
-    data: {
-      email: payload.email,
-      password: hashedPassword,
-      name: payload.name,
-      role: UserRole.TOURIST,
-      status: UserStatus.ACTIVE,
-      isVerified: false,
-      contactNo: payload.contactNo,
-      address: payload.address,
-    },
+    data: userData,
   });
 
   // Generate Verification Token (1 Day Validity)

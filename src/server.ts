@@ -2,6 +2,7 @@
 import { Server } from "http";
 import app from "./app";
 import envVars from "./config/env";
+import { seedAdmin } from "./helpers/seed";
 
 let server: Server;
 
@@ -13,6 +14,7 @@ async function main() {
 
     // Optional: Seed Super Admin
     // await seedSuperAdmin();
+    await seedAdmin();
   } catch (err) {
     console.log("Error starting server:", err);
   }

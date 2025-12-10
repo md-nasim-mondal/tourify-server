@@ -1,0 +1,15 @@
+model Availability {
+  id          String   @id @default(uuid())
+  guideId     String
+  guide       User     @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  date        DateTime // Specific date for availability
+  startTime   DateTime // Start time of the slot
+  endTime     DateTime // End time of the slot
+  isAvailable Boolean  @default(true) // Can be set to false if guide is unavailable for this slot
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guideId, date, startTime, endTime]) // A guide cannot have overlapping availability for the same slot
+  @@map("availabilities")
+}

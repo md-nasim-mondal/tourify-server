@@ -54,6 +54,8 @@ const createListing = async (req: any, user: IAuthUser) => {
       title: req.body.title,
       description: req.body.description,
       location: req.body.location,
+      latitude: req.body.latitude ? Number(req.body.latitude) : null, // NEW
+      longitude: req.body.longitude ? Number(req.body.longitude) : null, // NEW
       price: Number(req.body.price),
       duration: req.body.duration,
       maxGroupSize: req.body.maxGroupSize ? Number(req.body.maxGroupSize) : null,
@@ -245,7 +247,11 @@ const getSingleListing = async (id: string) => {
 };
 
 // 4. Update Listing (Only Owner Guide)
-const updateListing = async (id: string, payload: any, user: IAuthUser) => {
+const updateListing = async (
+  id: string,
+  req: any,
+  user: IAuthUser
+) => {
   const listing = await prisma.listing.findUniqueOrThrow({ where: { id } });
 
   if (!user) {
@@ -260,42 +266,64 @@ const updateListing = async (id: string, payload: any, user: IAuthUser) => {
     );
   }
 
+  const files = req.files as Express.Multer.File[];
+  const imagePaths: string[] = [];
+
+  // Upload new images if they exist
+  if (files && files.length > 0) {
+    for (const file of files) {
+      const uploaded = await fileUploader.uploadToCloudinary(file);
+      if (uploaded?.secure_url) {
+        imagePaths.push(uploaded.secure_url);
+      }
+    }
+    req.body.images = imagePaths;
+  }
+
   // Validate category if provided
-  if (payload.category && !listingCategories.includes(payload.category)) {
+  if (req.body.category && !listingCategories.includes(req.body.category)) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
   }
 
   // Validate languages if provided
-  if (payload.languages) {
-    const languagesArray = Array.isArray(payload.languages) 
-      ? payload.languages 
-      : [payload.languages];
-    
+  if (req.body.languages) {
+    const languagesArray = Array.isArray(req.body.languages)
+      ? req.body.languages
+      : [req.body.languages];
+
     const invalidLanguages = languagesArray.filter(
       (lang: string) => !listingLanguages.includes(lang)
     );
-    
+
     if (invalidLanguages.length > 0) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST, 
+        httpStatus.BAD_REQUEST,
         `Invalid language(s): ${invalidLanguages.join(", ")}`
       );
     }
   }
 
   // Convert price to number if provided
-  if (payload.price) {
-    payload.price = Number(payload.price);
+  if (req.body.price) {
+    req.body.price = Number(req.body.price);
   }
 
   // Convert maxGroupSize to number if provided
-  if (payload.maxGroupSize) {
-    payload.maxGroupSize = Number(payload.maxGroupSize);
+  if (req.body.maxGroupSize) {
+    req.body.maxGroupSize = Number(req.body.maxGroupSize);
+  }
+
+  // Convert latitude and longitude to number if provided
+  if (req.body.latitude) {
+    req.body.latitude = Number(req.body.latitude);
+  }
+  if (req.body.longitude) {
+    req.body.longitude = Number(req.body.longitude);
   }
 
   const result = await prisma.listing.update({
     where: { id },
-    data: payload,
+    data: req.body,
     include: {
       guide: {
         select: {
@@ -348,6 +376,38 @@ const getLanguages = async () => {
   return listingLanguages;
 };
 
+// 8. Get Map Data
+const getMapData = async (params: any) => {
+  const whereConditions: Prisma.ListingWhereInput = {
+    latitude: { not: null },
+    longitude: { not: null },
+    // Potentially add filters for geographical bounds from params
+    // e.g., northEastLat, northEastLng, southWestLat, southWestLng
+  };
+
+  const result = await prisma.listing.findMany({
+    where: whereConditions,
+    select: {
+      id: true,
+      title: true,
+      location: true,
+      latitude: true,
+      longitude: true,
+      images: true, // For map markers/popups
+      price: true, // For map markers/popups
+      guide: {
+        select: {
+          id: true,
+          name: true,
+          photo: true,
+        },
+      },
+    },
+  });
+
+  return result;
+};
+
 export const ListingService = {
   createListing,
   getAllListings,
@@ -356,4 +416,5 @@ export const ListingService = {
   deleteListing,
   getCategories,
   getLanguages,
+  getMapData,
 };

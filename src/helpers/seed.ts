@@ -1,43 +1,41 @@
-/* eslint-disable no-console */
-import { UserRole } from "@prisma/client";
+import { UserRole, UserStatus } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import envVars from "../config/env";
 import { prisma } from "../shared/prisma";
 
-const seedSuperAdmin = async () => {
+export const seedAdmin = async () => {
   try {
-    const isExistSuperAdmin = await prisma.user.findFirst({
+    const isAdminExist = await prisma.user.findFirst({
       where: {
         role: UserRole.ADMIN,
       },
     });
 
-    if (isExistSuperAdmin) {
-      console.log("Super admin already exists!");
+    if (isAdminExist) {
+      console.log("Admin already exists!");
       return;
     }
 
     const hashedPassword = await bcrypt.hash(
-      "123456",
+      envVars.admin.ADMIN_PASSWORD as string,
       Number(envVars.bcrypt.SALT_ROUND)
     );
 
-    const superAdminData = await prisma.user.create({
+    const admin = await prisma.user.create({
       data: {
-        email: "super@gmail.com",
+        email: envVars.admin.ADMIN_EMAIL as string,
         password: hashedPassword,
-        role: UserRole.SUPER_ADMIN,
-        name: "Super Admin",
+        name: "Admin",
+        role: UserRole.ADMIN,
+        status: UserStatus.ACTIVE,
         isVerified: true,
       },
     });
 
-    console.log("Super Admin Created Successfully!", superAdminData);
-  } catch (err) {
-    console.error(err);
+    console.log("Admin created successfully!", admin);
+  } catch (error) {
+    console.error(error);
   } finally {
     await prisma.$disconnect();
   }
 };
-
-export default seedSuperAdmin;

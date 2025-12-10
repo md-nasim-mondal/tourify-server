@@ -58,4 +58,7 @@ router.get("/categories/list", ListingController.getCategories);
 // Get Languages (Public)
 router.get("/languages/list", ListingController.getLanguages);
 
+// Get Map Data (Public)
+router.get("/map-data", ListingController.getMapData);
+
 export const ListingRoutes = router;

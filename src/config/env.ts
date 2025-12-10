@@ -41,6 +41,10 @@ interface EnvConfig {
     CANCEL_URL: string;
     FAIL_URL: string;
   };
+  admin: {
+    ADMIN_EMAIL: string;
+    ADMIN_PASSWORD: string;
+  }
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -72,6 +76,8 @@ const loadEnvVariables = (): EnvConfig => {
     "SUCCESS_URL",
     "CANCEL_URL",
     "FAIL_URL",
+    "ADMIN_EMAIL",
+    "ADMIN_PASSWORD"
   ];
 
   requiredEnvVariables.forEach((key) => {
@@ -119,6 +125,10 @@ const loadEnvVariables = (): EnvConfig => {
       CANCEL_URL: process.env.CANCEL_URL as string,
       FAIL_URL: process.env.FAIL_URL as string,
     },
+    admin:{
+      ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
+    }
   };
 };
 

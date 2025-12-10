@@ -40,6 +40,34 @@ const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSingleUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    throw new Error("User ID is required");
+  }
+  const result = await UserService.getSingleUser(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User retrieved successfully!",
+    data: result,
+  });
+});
+
+const getPublicUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    throw new Error("User ID is required");
+  }
+  const result = await UserService.getPublicUser(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Public user retrieved successfully!",
+    data: result,
+  });
+});
+
 const getMyProfile = catchAsync(
   async (req: Request & { user?: any }, res: Response) => {
     const result = await UserService.getMyProfile(req.user);
@@ -63,6 +91,21 @@ const updateMyProfile = catchAsync(
     });
   }
 );
+
+const updateUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    throw new Error("User ID is required");
+  }
+  const result = await UserService.updateUser(id, req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User updated successfully!",
+    data: result,
+  });
+});
+
 
 const changeUserStatus = catchAsync(
   async (req: Request & { user?: any }, res: Response) => {
@@ -102,8 +145,11 @@ export const UserController = {
   createAdmin,
   createGuide,
   getAllUsers,
+  getSingleUser,
+  getPublicUser,
   getMyProfile,
   updateMyProfile,
+  updateUser,
   changeUserStatus,
   changeUserRole,
 };

@@ -35,6 +35,26 @@ const createBooking = async (payload: any, user: IAuthUser) => {
 
   // Check if listing has maxGroupSize
   const bookingDate = new Date(payload.date);
+
+  // *** NEW: Check Guide Availability ***
+  const guideAvailability = await prisma.availability.findFirst({
+    where: {
+      guideId: listing.guideId,
+      date: {
+        gte: new Date(bookingDate.setHours(0, 0, 0, 0)), // Start of the day
+        lt: new Date(bookingDate.setHours(23, 59, 59, 999)), // End of the day
+      },
+      isAvailable: true,
+    },
+  });
+
+  if (!guideAvailability) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "The guide is not available for booking on this date!"
+    );
+  }
+  // *** END NEW ***
   
   // Check for existing bookings on same date
   const existingBookings = await prisma.booking.findMany({
