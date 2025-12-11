@@ -8,6 +8,21 @@ import { ListingValidation } from "./listing.validation";
 
 const router = express.Router();
 
+// Get All Listings (Public)
+router.get("/", ListingController.getAllListings);
+
+// Get Single Listing (Public)
+router.get("/:id", ListingController.getSingleListing);
+
+// Get Categories (Public)
+router.get("/categories/list", ListingController.getCategories);
+
+// Get Languages (Public)
+router.get("/languages/list", ListingController.getLanguages);
+
+// Get Map Data (Public)
+router.get("/map-data", ListingController.getMapData);
+
 // Create Listing (Only Guide can create) - Handles Multiple Images
 router.post(
   "/",
@@ -45,20 +60,5 @@ router.delete(
   auth(UserRole.GUIDE, UserRole.ADMIN, UserRole.SUPER_ADMIN),
   ListingController.deleteListing
 );
-
-// Get All Listings (Public)
-router.get("/", ListingController.getAllListings);
-
-// Get Single Listing (Public)
-router.get("/:id", ListingController.getSingleListing);
-
-// Get Categories (Public)
-router.get("/categories/list", ListingController.getCategories);
-
-// Get Languages (Public)
-router.get("/languages/list", ListingController.getLanguages);
-
-// Get Map Data (Public)
-router.get("/map-data", ListingController.getMapData);
 
 export const ListingRoutes = router;
