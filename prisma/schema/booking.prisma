@@ -2,19 +2,20 @@ model Booking {
   id         String        @id @default(uuid())
   date       DateTime
   status     BookingStatus @default(PENDING)
+  groupSize  Int           @default(1)
   totalPrice Float?
 
   // Relations
-  touristId  String
-  tourist    User          @relation(fields: [touristId], references: [id], onDelete: Cascade)
+  touristId String
+  tourist   User   @relation(fields: [touristId], references: [id], onDelete: Cascade)
 
-  listingId  String
-  listing    Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  
-  payment    Payment?      // Relation to Payment (Optional initially)
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  payment Payment? // Relation to Payment (Optional initially)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("bookings")
 }

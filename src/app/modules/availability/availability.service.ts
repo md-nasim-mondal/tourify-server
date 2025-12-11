@@ -1,13 +1,16 @@
-import { Prisma } from '@prisma/client';
-import httpStatus from 'http-status';
-import { IAuthUser } from '../../interfaces/common';
-import { paginationHelper } from '../../../helpers/paginationHelper';
-import { prisma } from '../../../shared/prisma';
-import ApiError from '../../errors/ApiError';
+import { Prisma } from "@prisma/client";
+import httpStatus from "http-status";
+import { IAuthUser } from "../../interfaces/common";
+import { paginationHelper } from "../../../helpers/paginationHelper";
+import { prisma } from "../../../shared/prisma";
+import ApiError from "../../errors/ApiError";
 
 const createAvailability = async (payload: any, user: IAuthUser) => {
-  if (!user || user.role !== 'GUIDE') {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Only guides can create availability slots!');
+  if (!user || user.role !== "GUIDE") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only guides can create availability slots!"
+    );
   }
 
   const { date, startTime, endTime } = payload;
@@ -28,7 +31,10 @@ const createAvailability = async (payload: any, user: IAuthUser) => {
   });
 
   if (existingAvailability) {
-    throw new ApiError(httpStatus.CONFLICT, 'Overlapping availability slot exists!');
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      "Overlapping availability slot exists!"
+    );
   }
 
   const result = await prisma.availability.create({
@@ -45,22 +51,24 @@ const createAvailability = async (payload: any, user: IAuthUser) => {
 };
 
 const getMyAvailability = async (options: any, user: IAuthUser) => {
-  if (!user || user.role !== 'GUIDE') {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Only guides can view their own availability!');
+  if (!user || user.role !== "GUIDE") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only guides can view their own availability!"
+    );
   }
 
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
 
   const result = await prisma.availability.findMany({
-    where: { guideId: user.id },
-    skip,
-    take: limit,
     orderBy: options.sortBy
       ? { [options.sortBy]: options.sortOrder }
-      : { date: 'asc', startTime: 'asc' },
+      : [{ date: "asc" }, { startTime: "asc" }],
   });
 
-  const total = await prisma.availability.count({ where: { guideId: user.id } });
+  const total = await prisma.availability.count({
+    where: { guideId: user.id },
+  });
 
   return { meta: { page, limit, total }, data: result };
 };
@@ -89,8 +97,11 @@ const getAllAvailabilities = async (filters: any, options: any) => {
     });
   }
 
-  if (typeof isAvailable === 'boolean') {
-    andConditions.push({ isAvailable });
+  if (isAvailable !== undefined && isAvailable !== null) {
+    // Handle both string ('true'/'false') and boolean values
+    const boolValue =
+      typeof isAvailable === "string" ? isAvailable === "true" : isAvailable;
+    andConditions.push({ isAvailable: boolValue });
   }
 
   const whereConditions: Prisma.AvailabilityWhereInput =
@@ -102,17 +113,17 @@ const getAllAvailabilities = async (filters: any, options: any) => {
     take: limit,
     orderBy: options.sortBy
       ? { [options.sortBy]: options.sortOrder }
-      : { date: 'asc', startTime: 'asc' },
+      : [{ date: "asc" }, { startTime: "asc" }],
     include: {
-        guide: {
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                photo: true,
-            }
-        }
-    }
+      guide: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+        },
+      },
+    },
   });
 
   const total = await prisma.availability.count({ where: whereConditions });
@@ -124,28 +135,40 @@ const getSingleAvailability = async (id: string) => {
   const result = await prisma.availability.findUniqueOrThrow({
     where: { id },
     include: {
-        guide: {
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                photo: true,
-            }
-        }
-    }
+      guide: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+        },
+      },
+    },
   });
   return result;
 };
 
-const updateAvailability = async (id: string, payload: any, user: IAuthUser) => {
-  if (!user || user.role !== 'GUIDE') {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Only guides can update availability slots!');
+const updateAvailability = async (
+  id: string,
+  payload: any,
+  user: IAuthUser
+) => {
+  if (!user || user.role !== "GUIDE") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only guides can update availability slots!"
+    );
   }
 
-  const existing = await prisma.availability.findUniqueOrThrow({ where: { id } });
+  const existing = await prisma.availability.findUniqueOrThrow({
+    where: { id },
+  });
 
   if (existing.guideId !== user.id) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'You can only update your own availability slots!');
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "You can only update your own availability slots!"
+    );
   }
 
   const { date, startTime, endTime } = payload;
@@ -170,7 +193,10 @@ const updateAvailability = async (id: string, payload: any, user: IAuthUser) => 
     });
 
     if (overlappingAvailability) {
-      throw new ApiError(httpStatus.CONFLICT, 'Updated slot overlaps with an existing availability!');
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        "Updated slot overlaps with an existing availability!"
+      );
     }
   }
 
@@ -180,7 +206,9 @@ const updateAvailability = async (id: string, payload: any, user: IAuthUser) => 
       ...(date ? { date: new Date(date) } : {}),
       ...(startTime ? { startTime: new Date(startTime) } : {}),
       ...(endTime ? { endTime: new Date(endTime) } : {}),
-      ...(typeof payload.isAvailable !== 'undefined' ? { isAvailable: payload.isAvailable } : {}),
+      ...(typeof payload.isAvailable !== "undefined"
+        ? { isAvailable: payload.isAvailable }
+        : {}),
     },
   });
 
@@ -188,14 +216,22 @@ const updateAvailability = async (id: string, payload: any, user: IAuthUser) => 
 };
 
 const deleteAvailability = async (id: string, user: IAuthUser) => {
-  if (!user || user.role !== 'GUIDE') {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Only guides can delete availability slots!');
+  if (!user || user.role !== "GUIDE") {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Only guides can delete availability slots!"
+    );
   }
 
-  const existing = await prisma.availability.findUniqueOrThrow({ where: { id } });
+  const existing = await prisma.availability.findUniqueOrThrow({
+    where: { id },
+  });
 
   if (existing.guideId !== user.id) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'You can only delete your own availability slots!');
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "You can only delete your own availability slots!"
+    );
   }
 
   const result = await prisma.availability.delete({ where: { id } });
