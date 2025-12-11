@@ -10,6 +10,11 @@ const router = express.Router();
 
 // Get All Listings (Public)
 router.get("/", ListingController.getAllListings);
+router.get(
+  "/my-create",
+  auth(UserRole.GUIDE),
+  ListingController.getMyCreateListings
+);
 
 // Get Single Listing (Public)
 router.get("/:id", ListingController.getSingleListing);
@@ -42,7 +47,7 @@ router.post(
 // Update Listing (Only Guide)
 router.patch(
   "/:id",
-  auth(UserRole.GUIDE),
+  auth(UserRole.GUIDE, UserRole.ADMIN, UserRole.SUPER_ADMIN),
   fileUploader.upload.array("images", 5), // Allow image updates
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
