@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Prisma, UserRole } from "@prisma/client";
 import httpStatus from "http-status";
 import { IAuthUser } from "../../interfaces/common";

@@ -1,38 +1,102 @@
-# Local Guide Platform (Server)
+# Tourify Server - Express.js Backend
 
-Welcome to the server-side of the Local Guide Platform, the backend powering a platform designed to connect travelers with passionate local guides for authentic, personalized experiences.
+Production-ready Node.js/Express backend for the Tourify platform. Provides RESTful APIs for tour management, bookings, payments, and user management.
 
-**GitHub Server Repo:** [Your GitHub Server Repo Link]
-**Live Deployment:** [Your Server Live Deployment Link]
-
----
-
-## Features
-
--   **User Authentication & Authorization:** Secure registration and login for Tourists, Guides, and Admins using JWT. Implements role-based access control.
--   **User Profile Management (CRUD):** Allows users to create, read, update, and delete their profile information, including role-specific fields (e.g., Guide's expertise, Tourist's travel preferences).
--   **Tour Listing Management (CRUD):** Guides can create, read, update, and delete their tour listings, including details like title, description, location, price, duration, group size, category, languages, meeting point, and images.
--   **Search & Filtering System:** Robust API endpoints for searching and filtering tour listings by various criteria (e.g., search term, price range, category, language).
--   **Booking System:** Manages the entire booking workflow, from a tourist requesting a date/time to a guide accepting or declining, and updating booking statuses.
--   **Review & Rating System:** Allows tourists to submit reviews and ratings for completed tours, which are then associated with the respective listings and guides.
--   **Payment Integration:** Supports secure payment processing for tour bookings, with integration for Stripe and a placeholder for SSLCommerz.
--   **Admin Management APIs:** Endpoints for administrators to manage users (roles, status), listings, and bookings across the platform.
--   **Global Error Handling:** Robust middleware to gracefully catch backend errors and communicate to the frontend.
--   **Not Found Middleware:** Handles requests to undefined routes.
+**Live API**: [Your Render/Railway URL]  
+**API Documentation**: See below
 
 ---
 
-## Technology Stack
+## 🎯 Core Features
 
--   **Backend Framework:** Node.js, Express.js
--   **Database:** PostgreSQL
--   **ORM:** Prisma ORM
--   **Authentication:** JWT (JSON Web Tokens)
--   **Security:** `bcryptjs` for password hashing, `cors`, `express-rate-limit`
--   **Cloud Storage:** Cloudinary for image uploads
--   **Email Service:** Nodemailer for email verification and password resets
--   **Payment Gateway:** Stripe, SSLCommerz (placeholder)
--   **Others:** Any other required npm packages will be listed in `package.json`.
+✅ **User Authentication & Authorization**
+
+- Secure registration and login (Tourist/Guide/Admin)
+- JWT-based authentication
+- Email verification before login
+- Password reset via email
+- Role-based access control
+
+✅ **User Profile Management (CRUD)**
+
+- Create, read, update, delete profiles
+- Role-specific fields (expertise, languages, daily rates)
+- Profile picture uploads via Cloudinary
+- Bio and contact information
+
+✅ **Tour Listing Management (CRUD)**
+
+- Guides can create/edit/delete tour listings
+- Rich descriptions and itineraries
+- Image upload support (multiple photos)
+- Pricing and availability settings
+- Meeting point and group size configuration
+
+✅ **Search & Filtering System**
+
+- Filter by destination/city
+- Filter by category (Food, History, Adventure, Art, Nightlife, Shopping)
+- Filter by language, price range
+- Pagination support
+- Sort by date, rating, price
+
+✅ **Booking System**
+
+- Request-based booking flow
+- Date/time selection
+- Real-time booking status updates (Pending, Confirmed, Completed, Cancelled)
+- Booking history tracking
+
+✅ **Review & Rating System**
+
+- Post-tour reviews and ratings (1-5 stars)
+- Photo reviews support
+- Guide rating calculations
+- Helpful review sorting
+
+✅ **Payment Integration**
+
+- Stripe integration (credit/debit cards)
+- SSLCommerz integration (local payments)
+- Secure payment processing
+- Webhook verification
+- Payment history tracking
+
+✅ **Admin Management APIs**
+
+- User management (view, edit, deactivate)
+- Listing moderation and oversight
+- Booking management
+- Payment analytics and tracking
+- Platform statistics
+
+✅ **Global Error Handling**
+
+- Centralized error handling middleware
+- Graceful error responses
+- Request logging for debugging
+- No stack traces in production
+
+---
+
+## 🛠️ Technology Stack
+
+- **Backend Framework:** Node.js, Express.js 5
+- **Database:** PostgreSQL with Prisma ORM
+- **Authentication:** JWT (jsonwebtoken)
+- **Password Hashing:** bcryptjs
+- **Validation:** Zod
+- **Email:** Nodemailer
+- **File Storage:** Cloudinary
+- **Payments:** Stripe, SSLCommerz
+- **Rate Limiting:** express-rate-limit
+- **CORS:** Enabled
+- **Environment:** dotenv
+- **Security:** `bcryptjs` for password hashing, `cors`, `express-rate-limit`
+- **Cloud Storage:** Cloudinary for image uploads
+- **Email Service:** Nodemailer for email verification and password resets
+- **Payment Gateway:** Stripe, SSLCommerz (placeholder)
+- **Others:** Any other required npm packages will be listed in `package.json`.
 
 ---
 
@@ -40,9 +104,9 @@ Welcome to the server-side of the Local Guide Platform, the backend powering a p
 
 ### Prerequisites
 
--   Node.js (v18 or later)
--   PostgreSQL
--   npm or yarn
+- Node.js (v18 or later)
+- PostgreSQL
+- npm or yarn
 
 ### 1. Clone the Repository
 
@@ -130,6 +194,7 @@ Ensure your PostgreSQL database is running and accessible.
 ```bash
 npx prisma migrate dev --name init
 ```
+
 (If you already have migrations, adjust the command or use `npx prisma migrate deploy` in production.)
 
 ### 5. Seed the Database (Optional but Recommended)
@@ -159,4 +224,3 @@ The server will be running at [http://localhost:5000](http://localhost:5000).
 ## Video Explanation
 
 [Your Video Explanation Link]
-
