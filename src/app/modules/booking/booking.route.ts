@@ -29,6 +29,13 @@ router.get(
   BookingController.getSingleBooking
 );
 
+// Get Booked Dates for a specific guide
+router.get(
+  "/guide-booked-dates/:guideId",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
+  BookingController.getBookingDatesByGuide
+);
+
 // Update Status (Guide Accepts/Rejects, Tourist Cancels, Admin Manages)
 router.patch(
   "/:id/status",

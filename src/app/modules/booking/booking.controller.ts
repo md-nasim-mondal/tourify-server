@@ -50,9 +50,21 @@ const updateBookingStatus = catchAsync(async (req: Request & { user?: any }, res
   });
 });
 
+const getBookingDatesByGuide = catchAsync(async (req: Request, res: Response) => {
+  const { guideId } = req.params;
+  const result = await BookingService.getBookingDatesByGuide(guideId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Booked dates fetched successfully!",
+    data: result,
+  });
+});
+
 export const BookingController = {
   createBooking,
   getAllBookings,
   getSingleBooking,
   updateBookingStatus,
+  getBookingDatesByGuide,
 };

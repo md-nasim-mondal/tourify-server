@@ -67,28 +67,7 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     );
   }
 
-  // Check if listing has maxGroupSize
   const bookingDate = new Date(payload.date);
-
-  // *** NEW: Check Guide Availability ***
-  const guideAvailability = await prisma.availability.findFirst({
-    where: {
-      guideId: listing.guideId,
-      date: {
-        gte: new Date(bookingDate.setHours(0, 0, 0, 0)), // Start of the day
-        lt: new Date(bookingDate.setHours(23, 59, 59, 999)), // End of the day
-      },
-      isAvailable: true,
-    },
-  });
-
-  if (!guideAvailability) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "The guide is not available for booking on this date!"
-    );
-  }
-  // *** END NEW ***
 
   // Check for existing bookings on same date
   const existingBookings = await prisma.booking.findMany({
@@ -113,7 +92,9 @@ const createBooking = async (payload: any, user: IAuthUser) => {
   if (totalGroupSize > listing.maxGroupSize) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Not enough capacity for ${groupSize} people. Available: ${listing.maxGroupSize - (totalGroupSize - groupSize)} people for this date!`
+      `Not enough capacity for ${groupSize} people. Available: ${
+        listing.maxGroupSize - (totalGroupSize - groupSize)
+      } people for this date!`
     );
   }
 
@@ -303,9 +284,28 @@ const updateBookingStatus = async (
   return result;
 };
 
+// 5. Get all unique booked dates for a specific guide
+const getBookingDatesByGuide = async (guideId: string) => {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      listing: {
+        guideId: guideId,
+      },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+    },
+    select: {
+      date: true,
+    },
+    distinct: ["date"], // Get only unique dates
+  });
+
+  return bookings.map((booking) => booking.date);
+};
+
 export const BookingService = {
   createBooking,
   getAllBookings,
   getSingleBooking,
   updateBookingStatus,
+  getBookingDatesByGuide,
 };
