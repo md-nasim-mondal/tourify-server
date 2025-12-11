@@ -15,6 +15,24 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     );
   }
 
+  // Validate payload
+  if (!payload.listingId || !payload.date) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "listingId and date are required!"
+    );
+  }
+
+  const groupSize = payload.groupSize || 1;
+
+  // Validate groupSize
+  if (groupSize < 1 || !Number.isInteger(groupSize)) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Group size must be a positive integer!"
+    );
+  }
+
   // Check if listing exists
   const listing = await prisma.listing.findUnique({
     where: { id: payload.listingId },
@@ -25,6 +43,14 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Listing not found!");
   }
 
+  // Validate that maxGroupSize is defined
+  if (!listing.maxGroupSize) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Listing does not have a maximum group size defined!"
+    );
+  }
+
   // Prevent Guide from booking their own listing
   if (listing.guideId === user.id) {
     throw new ApiError(
@@ -33,9 +59,16 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     );
   }
 
-  // Check if listing has maxGroupSize
+  // Check if groupSize exceeds maxGroupSize
+  if (groupSize > listing.maxGroupSize) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `Group size cannot exceed maximum of ${listing.maxGroupSize} people!`
+    );
+  }
+
   const bookingDate = new Date(payload.date);
-  
+
   // Check for existing bookings on same date
   const existingBookings = await prisma.booking.findMany({
     where: {
@@ -48,21 +81,33 @@ const createBooking = async (payload: any, user: IAuthUser) => {
     },
   });
 
-  // Check maxGroupSize limit
-  if (listing.maxGroupSize && existingBookings.length >= listing.maxGroupSize) {
+  // Calculate total group size for this date
+  const totalGroupSize =
+    existingBookings.reduce(
+      (sum, booking) => sum + (booking.groupSize || 1),
+      0
+    ) + groupSize;
+
+  // Check if total group size exceeds maxGroupSize limit
+  if (totalGroupSize > listing.maxGroupSize) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "This tour is fully booked for the selected date!"
+      `Not enough capacity for ${groupSize} people. Available: ${
+        listing.maxGroupSize - (totalGroupSize - groupSize)
+      } people for this date!`
     );
   }
+
+  const totalPrice = listing.price * groupSize;
 
   const result = await prisma.booking.create({
     data: {
       listingId: payload.listingId,
       touristId: user.id,
+      groupSize: groupSize,
       date: bookingDate,
       status: BookingStatus.PENDING,
-      totalPrice: listing.price,
+      totalPrice: totalPrice,
     },
     include: {
       listing: {
@@ -239,9 +284,28 @@ const updateBookingStatus = async (
   return result;
 };
 
+// 5. Get all unique booked dates for a specific guide
+const getBookingDatesByGuide = async (guideId: string) => {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      listing: {
+        guideId: guideId,
+      },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+    },
+    select: {
+      date: true,
+    },
+    distinct: ["date"], // Get only unique dates
+  });
+
+  return bookings.map((booking) => booking.date);
+};
+
 export const BookingService = {
   createBooking,
   getAllBookings,
   getSingleBooking,
   updateBookingStatus,
+  getBookingDatesByGuide,
 };

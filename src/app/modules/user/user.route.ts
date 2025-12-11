@@ -11,7 +11,7 @@ const router = express.Router();
 // Admin Creation (Only Super Admin)
 router.post(
   "/create-admin",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  auth(UserRole.SUPER_ADMIN),
   fileUploader.upload.single("file"),
   (req: Request, res: Response, next: NextFunction) => {
     req.body = JSON.parse(req.body.data);
@@ -41,6 +41,19 @@ router.get(
   UserController.getAllUsers
 );
 
+// Get Single User (Admin / Super Admin)
+router.get(
+  "/:id",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  UserController.getSingleUser
+);
+
+// Public: Get user basic profile by id
+router.get(
+  "/public/:id",
+  UserController.getPublicUser
+);
+
 // Get My Profile (All Authenticated Users)
 router.get(
   "/me",
@@ -59,8 +72,25 @@ router.patch(
     }
     next();
   },
+  validateRequest(UserValidation.updateMyProfileValidation),
   UserController.updateMyProfile
 );
+
+// Update User (Admin / Super Admin)
+router.patch(
+  "/:id",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  fileUploader.upload.single("file"),
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.body.data) {
+       req.body = JSON.parse(req.body.data);
+    }
+    next();
+  },
+  validateRequest(UserValidation.updateUserValidation),
+  UserController.updateUser
+);
+
 
 // Change Status (Block/Unblock)
 router.patch(

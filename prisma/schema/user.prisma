@@ -17,7 +17,8 @@ model User {
   expertise          String[]     @default([])     // ["History", "Food", "Adventure"]
   languagesSpoken    String[]     @default([])     // ["English", "Spanish", "Bengali"]
   dailyRate          Float?        // Guide এর daily charge
-  
+  travelPreferences  String[]     @default([])     // ["Budget", "Luxury", "Family Friendly"]
+
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -25,6 +26,8 @@ model User {
   listings           Listing[]
   bookings           Booking[]
   reviews            Review[]
+  userBadges         UserBadge[]
+  availabilities     Availability[]
 
   @@map("users")
 }

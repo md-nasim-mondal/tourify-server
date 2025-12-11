@@ -8,6 +8,26 @@ import { ListingValidation } from "./listing.validation";
 
 const router = express.Router();
 
+// Get All Listings (Public)
+router.get("/", ListingController.getAllListings);
+router.get(
+  "/my-create",
+  auth(UserRole.GUIDE),
+  ListingController.getMyCreateListings
+);
+
+// Get Single Listing (Public)
+router.get("/:id", ListingController.getSingleListing);
+
+// Get Categories (Public)
+router.get("/categories/list", ListingController.getCategories);
+
+// Get Languages (Public)
+router.get("/languages/list", ListingController.getLanguages);
+
+// Get Map Data (Public)
+router.get("/map-data", ListingController.getMapData);
+
 // Create Listing (Only Guide can create) - Handles Multiple Images
 router.post(
   "/",
@@ -27,7 +47,7 @@ router.post(
 // Update Listing (Only Guide)
 router.patch(
   "/:id",
-  auth(UserRole.GUIDE),
+  auth(UserRole.GUIDE, UserRole.ADMIN, UserRole.SUPER_ADMIN),
   fileUploader.upload.array("images", 5), // Allow image updates
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
@@ -45,17 +65,5 @@ router.delete(
   auth(UserRole.GUIDE, UserRole.ADMIN, UserRole.SUPER_ADMIN),
   ListingController.deleteListing
 );
-
-// Get All Listings (Public)
-router.get("/", ListingController.getAllListings);
-
-// Get Single Listing (Public)
-router.get("/:id", ListingController.getSingleListing);
-
-// Get Categories (Public)
-router.get("/categories/list", ListingController.getCategories);
-
-// Get Languages (Public)
-router.get("/languages/list", ListingController.getLanguages);
 
 export const ListingRoutes = router;

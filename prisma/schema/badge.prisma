@@ -1,0 +1,28 @@
+// tourify-server/prisma/schema/badge.prisma
+model Badge {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  icon        String?   // URL to an icon representing the badge
+  criteria    String?   // Textual description of how to earn the badge (e.g., "Complete 50 tours")
+  
+  // Relation to users who have this badge
+  users       UserBadge[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId     String
+  badge       Badge     @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime  @default(now())
+
+  @@unique([userId, badgeId]) // A user can only have a specific badge once
+  @@map("user_badges")
+}

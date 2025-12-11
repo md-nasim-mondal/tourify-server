@@ -14,4 +14,4 @@ const validateRequest =
     }
   };
 
-  export default validateRequest;
+export default validateRequest;

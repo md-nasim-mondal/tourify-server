@@ -15,7 +15,36 @@ router.post(
   ReviewController.createReview
 );
 
-// Get Reviews for a Listing (Public)
-router.get("/:listingId", ReviewController.getReviewsByListing);
+// Get All Reviews (Admin / Super Admin)
+router.get(
+  "/",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  ReviewController.getAllReviews
+);
+
+// Get Single Review
+router.get(
+  "/:id",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
+  ReviewController.getSingleReview
+);
+
+// Get Reviews for a Listing (Public - no auth needed)
+router.get("/listing/:listingId", ReviewController.getReviewsByListing);
+
+// Update Review
+router.patch(
+  "/:id",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TOURIST), // Tourist can update their own, Admin/Super Admin can update all
+  validateRequest(ReviewValidation.updateReviewValidation),
+  ReviewController.updateReview
+);
+
+// Delete Review
+router.delete(
+  "/:id",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TOURIST), // Tourist can delete their own, Admin/Super Admin can delete all
+  ReviewController.deleteReview
+);
 
 export const ReviewRoutes = router;
