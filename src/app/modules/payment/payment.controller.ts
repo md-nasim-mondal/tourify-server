@@ -141,6 +141,12 @@ const releasePayout = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getReceipt = catchAsync(async (req: Request & { user?: IAuthUser }, res: Response) => {
+  const { paymentId } = req.params as { paymentId: string };
+  const receiptUrl = await PaymentService.getReceiptUrl(paymentId, req.user as IAuthUser);
+  res.redirect(receiptUrl);
+});
+
 export const PaymentController = {
   initiateStripePayment,
   initiateSSLCommerzPayment,
@@ -153,4 +159,5 @@ export const PaymentController = {
   sslCommerzFail,
   sslCommerzCancel,
   getPaymentStatus,
+  getReceipt,
 };

@@ -63,4 +63,11 @@ router.post(
   PaymentController.releasePayout
 );
 
+// Get Receipt (redirects to Cloudinary)
+router.get(
+  "/:paymentId/receipt",
+  auth(UserRole.TOURIST, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.GUIDE),
+  PaymentController.getReceipt
+);
+
 export const PaymentRoutes = router;

@@ -4,6 +4,7 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { ListingService } from "./listing.service";
 import { IAuthUser } from "../../interfaces/common";
+import pick from "../../../shared/pick";
 
 const createListing = catchAsync(
   async (req: Request & { user?: IAuthUser }, res: Response) => {
@@ -21,7 +22,8 @@ const createListing = catchAsync(
 );
 
 const getAllListings = catchAsync(async (req: Request, res: Response) => {
-  const result = await ListingService.getAllListings(req.query, req.query);
+  const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
+  const result = await ListingService.getAllListings(req.query, options);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -33,7 +35,8 @@ const getAllListings = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyCreateListings = catchAsync(async (req: Request & { user?: IAuthUser }, res: Response) => {
-  const result = await ListingService.getMyCreateListings(req.query, req.query, req.user as IAuthUser);
+  const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
+  const result = await ListingService.getMyCreateListings(req.query, options, req.user as IAuthUser);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

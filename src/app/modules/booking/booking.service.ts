@@ -174,6 +174,7 @@ const getAllBookings = async (options: any, user: IAuthUser) => {
     include: {
       listing: {
         select: {
+          id: true,
           title: true,
           price: true,
           images: true,
@@ -190,6 +191,7 @@ const getAllBookings = async (options: any, user: IAuthUser) => {
           photo: true,
         },
       },
+      payment: true,
     },
   });
 
@@ -213,6 +215,7 @@ const getSingleBooking = async (id: string, user: IAuthUser) => {
     include: {
       listing: true,
       tourist: true,
+      payment: true,
     },
   });
 
