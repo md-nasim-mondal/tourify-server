@@ -13,9 +13,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 const initiateStripePayment = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { 
+    include: {
       listing: true,
-      tourist: true 
+      tourist: true,
     },
   });
 
@@ -27,6 +27,12 @@ const initiateStripePayment = async (bookingId: string) => {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Cannot pay for a cancelled booking!"
+    );
+  }
+  if (booking.status !== BookingStatus.CONFIRMED) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Booking must be accepted by the guide before payment"
     );
   }
 
@@ -51,9 +57,16 @@ const initiateStripePayment = async (bookingId: string) => {
           product_data: {
             name: booking.listing.title,
             description: `Booking for ${booking.date.toLocaleDateString()}`,
-            images: booking.listing.images.length > 0 ? [booking.listing.images[0]].filter((img): img is string => img !== undefined) : [],
+            images:
+              booking.listing.images.length > 0
+                ? [booking.listing.images[0]].filter(
+                    (img): img is string => img !== undefined
+                  )
+                : [],
           },
-          unit_amount: Math.round(booking.listing.price * 100), // Convert to cents
+          unit_amount: Math.round(
+            (booking.totalPrice || booking.listing.price) * 100
+          ),
         },
         quantity: 1,
       },
@@ -68,19 +81,36 @@ const initiateStripePayment = async (bookingId: string) => {
     },
   });
 
-  // Create Payment Record
-  const payment = await prisma.payment.create({
-    data: {
-      bookingId,
-      amount: booking.listing.price,
-      transactionId,
-      status: PaymentStatus.PENDING,
-      paymentGatewayData: {
-        stripeSessionId: session.id,
-        stripePaymentIntentId: session.payment_intent as string,
+  // Create or Update Payment Record
+  let payment;
+  if (existingPayment && existingPayment.status === PaymentStatus.PENDING) {
+    payment = await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        paymentGatewayData: {
+          ...(existingPayment.paymentGatewayData as any),
+          stripeSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
+          reinitiatedAt: new Date().toISOString(),
+        },
       },
-    },
-  });
+    });
+  } else {
+    payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        status: PaymentStatus.PENDING,
+        paymentGatewayData: {
+          stripeSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
+        },
+      },
+    });
+  }
 
   return {
     paymentId: payment.id,
@@ -106,6 +136,12 @@ const initiateSSLCommerzPayment = async (bookingId: string) => {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Cannot pay for a cancelled booking!"
+    );
+  }
+  if (booking.status !== BookingStatus.CONFIRMED) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Booking must be accepted by the guide before payment"
     );
   }
 
@@ -141,27 +177,43 @@ const initiateSSLCommerzPayment = async (bookingId: string) => {
     product_profile: "general",
   };
 
-  // Create Payment Record first
-  const payment = await prisma.payment.create({
-    data: {
-      bookingId,
-      amount: booking.listing.price,
-      transactionId,
-      status: PaymentStatus.PENDING,
-      paymentGatewayData: {
-        gateway: "SSLCommerz",
-        initiatedAt: new Date().toISOString(),
+  // Create or Update Payment Record first
+  let payment;
+  if (existingPayment && existingPayment.status === PaymentStatus.PENDING) {
+    payment = await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        paymentGatewayData: {
+          gateway: "SSLCommerz",
+          reinitiatedAt: new Date().toISOString(),
+        },
       },
-    },
-  });
+    });
+  } else {
+    payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        status: PaymentStatus.PENDING,
+        paymentGatewayData: {
+          gateway: "SSLCommerz",
+          initiatedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
 
   // In production, you would make API call to SSLCommerz
   // const response = await axios.post("https://sandbox.sslcommerz.com/gwprocess/v4/api.php", sslData);
-  
+
   // For demo, return a mock URL
-  const paymentUrl = process.env.NODE_ENV === "production"
-    ? `https://sandbox.sslcommerz.com/gwprocess/v4/api.php?tran_id=${transactionId}`
-    : `${process.env.CLIENT_URL}/payment/demo-success?paymentId=${payment.id}`;
+  const paymentUrl =
+    process.env.NODE_ENV === "production"
+      ? `https://sandbox.sslcommerz.com/gwprocess/v4/api.php?tran_id=${transactionId}`
+      : `${process.env.CLIENT_URL}/payment/demo-success?paymentId=${payment.id}`;
 
   return {
     paymentId: payment.id,
@@ -196,10 +248,10 @@ const confirmStripePayment = async (sessionId: string) => {
   // Update Payment Status
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         stripePaymentStatus: session.payment_status,
         paidAt: new Date().toISOString(),
       },
@@ -224,10 +276,10 @@ const confirmPayment = async (paymentId: string) => {
   // Update Payment Status to PAID
   const updatedPayment = await prisma.payment.update({
     where: { id: paymentId },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         confirmedAt: new Date().toISOString(),
         confirmedBy: "MANUAL",
       },
@@ -265,10 +317,10 @@ const handleSSLCommerzWebhook = async (payload: any) => {
   // Update Payment
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         sslcommerzValId: val_id,
         verifiedAt: new Date().toISOString(),
       },
@@ -316,4 +368,56 @@ export const PaymentService = {
   confirmPayment,
   handleSSLCommerzWebhook,
   getPaymentStatus,
+  async getAllPayments(options: any, _user: any) {
+    const page = Number(options.page) || 1;
+    const limit = Number(options.limit) || 10;
+    const skip = (page - 1) * limit;
+    const result = await prisma.payment.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        booking: {
+          include: {
+            listing: {
+              select: { title: true, guideId: true },
+            },
+            tourist: {
+              select: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+    const total = await prisma.payment.count();
+    return { meta: { page, limit, total }, data: result };
+  },
+  async releaseGuidePayout(paymentId: string) {
+    const payment = await prisma.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+      include: { booking: { include: { listing: true } } },
+    });
+    if (payment.status !== PaymentStatus.PAID) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Payment not settled");
+    }
+    const booking = payment.booking;
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Booking not completed");
+    }
+    const platformFeeRate = 0.1;
+    const payoutAmount =
+      (payment.amount || booking.listing.price) * (1 - platformFeeRate);
+    const updated = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        paymentGatewayData: {
+          ...(payment.paymentGatewayData as any),
+          payoutReleasedAt: new Date().toISOString(),
+          payoutAmount,
+          guideId: booking.listing.guideId,
+        },
+      },
+    });
+    return updated;
+  },
 };

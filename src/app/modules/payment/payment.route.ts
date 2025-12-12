@@ -5,6 +5,12 @@ import { UserRole } from "@prisma/client";
 
 const router = express.Router();
 
+router.get(
+  "/",
+  auth(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  PaymentController.getAllPayments
+);
+
 // Tourist initiates Stripe payment
 router.post(
   "/stripe/initiate",
@@ -33,6 +39,12 @@ router.post(
   PaymentController.stripeWebhook
 );
 
+router.post(
+  "/stripe/confirm",
+  auth(UserRole.TOURIST),
+  PaymentController.stripeConfirm
+);
+
 // SSLCommerz Success/Fail/Cancel endpoints
 router.post("/sslcommerz-success", PaymentController.sslCommerzSuccess);
 router.post("/sslcommerz-fail", PaymentController.sslCommerzFail);
@@ -43,6 +55,12 @@ router.get(
   "/:paymentId/status",
   auth(UserRole.TOURIST, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.GUIDE),
   PaymentController.getPaymentStatus
+);
+
+router.post(
+  "/release-payout",
+  auth(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  PaymentController.releasePayout
 );
 
 export const PaymentRoutes = router;

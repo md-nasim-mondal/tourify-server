@@ -108,11 +108,47 @@ const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const stripeConfirm = catchAsync(async (req: Request, res: Response) => {
+  const { sessionId } = req.body as { sessionId: string };
+  const result = await PaymentService.confirmStripePayment(sessionId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Stripe payment confirmed successfully!",
+    data: result,
+  });
+});
+
+const getAllPayments = catchAsync(async (req: Request, res: Response) => {
+  const result = await PaymentService.getAllPayments(req.query, (req as any).user);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Payments fetched successfully!",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const releasePayout = catchAsync(async (req: Request, res: Response) => {
+  const { paymentId } = req.body as { paymentId: string };
+  const result = await PaymentService.releaseGuidePayout(paymentId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Guide payout released successfully!",
+    data: result,
+  });
+});
+
 export const PaymentController = {
   initiateStripePayment,
   initiateSSLCommerzPayment,
   confirmPayment,
   stripeWebhook,
+  stripeConfirm,
+  getAllPayments,
+  releasePayout,
   sslCommerzSuccess,
   sslCommerzFail,
   sslCommerzCancel,
