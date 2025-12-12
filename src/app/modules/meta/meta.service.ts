@@ -88,7 +88,13 @@ const getTouristMetadata = async (touristId: string) => {
     where: { touristId, status: "COMPLETED" },
   });
   const upcomingTrips = await prisma.booking.count({
-    where: { touristId, status: "CONFIRMED" },
+    where: {
+      touristId,
+      status: "CONFIRMED",
+      date: {
+        gte: new Date(),
+      },
+    },
   });
 
   return {

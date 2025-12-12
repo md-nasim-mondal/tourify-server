@@ -97,8 +97,18 @@ const createListing = async (req: any, user: IAuthUser) => {
 // 2. Get All Listings (Public + Filter + Search)
 const getAllListings = async (params: any, options: any) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
-  const { searchTerm, minPrice, maxPrice, category, language, ...filterData } =
-    params;
+  const {
+    searchTerm,
+    minPrice,
+    maxPrice,
+    category,
+    language,
+    page: _page,
+    limit: _limit,
+    sortBy: _sortBy,
+    sortOrder: _sortOrder,
+    ...filterData
+  } = params;
 
   const andConditions: Prisma.ListingWhereInput[] = [];
 
@@ -212,8 +222,18 @@ const getMyCreateListings = async (
   user: IAuthUser
 ) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
-  const { searchTerm, minPrice, maxPrice, category, language, ...filterData } =
-    params;
+  const {
+    searchTerm,
+    minPrice,
+    maxPrice,
+    category,
+    language,
+    page: _page,
+    limit: _limit,
+    sortBy: _sortBy,
+    sortOrder: _sortOrder,
+    ...filterData
+  } = params;
 
   const andConditions: Prisma.ListingWhereInput[] = [];
 

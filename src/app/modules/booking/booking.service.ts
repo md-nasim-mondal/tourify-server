@@ -254,6 +254,14 @@ const updateBookingStatus = async (
     include: { listing: true },
   });
 
+  // Prevent any changes after completion
+  if (booking.status === BookingStatus.COMPLETED) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Completed bookings cannot be updated"
+    );
+  }
+
   // Authorization Logic
   if (user.role === UserRole.GUIDE) {
     // Guide can only update bookings for their listings
@@ -262,6 +270,33 @@ const updateBookingStatus = async (
         httpStatus.FORBIDDEN,
         "You can only manage bookings for your own listings!"
       );
+    }
+    // Guide transition rules
+    if (status === BookingStatus.CONFIRMED) {
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only pending bookings can be accepted"
+        );
+      }
+    }
+    if (status === BookingStatus.CANCELLED) {
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only pending bookings can be declined"
+        );
+      }
+    }
+    if (status === BookingStatus.COMPLETED) {
+      // Completion allowed only after tour date has passed and status was confirmed
+      const now = new Date();
+      if (booking.status !== BookingStatus.CONFIRMED || booking.date >= now) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only past confirmed bookings can be marked as completed"
+        );
+      }
     }
   } else if (user.role === UserRole.TOURIST) {
     // Tourist can only CANCEL their own booking if it's still PENDING
@@ -275,6 +310,12 @@ const updateBookingStatus = async (
       throw new ApiError(
         httpStatus.BAD_REQUEST,
         "Tourists can only Cancel bookings!"
+      );
+    }
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Only pending bookings can be cancelled by tourist"
       );
     }
   }

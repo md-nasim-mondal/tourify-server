@@ -55,6 +55,26 @@ const createReview = async (payload: any, user: IAuthUser) => {
   return result;
 };
 
+// 3.a Get Reviews by current Tourist (My Reviews)
+const getMyReviews = async (user: IAuthUser) => {
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "User not found!");
+  }
+  if (user.role !== UserRole.TOURIST) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Only tourists can view their reviews!");
+  }
+  const result = await prisma.review.findMany({
+    where: { touristId: user.id },
+    include: {
+      listing: {
+        select: { id: true, title: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return result;
+};
+
 // 2. Get All Reviews (Admin/Super Admin)
 const getAllReviews = async (params: any, options: any) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
@@ -194,4 +214,5 @@ export const ReviewService = {
   getSingleReview,
   updateReview,
   deleteReview,
+  getMyReviews,
 };
