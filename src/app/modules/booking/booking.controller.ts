@@ -52,7 +52,7 @@ const updateBookingStatus = catchAsync(async (req: Request & { user?: any }, res
 
 const getBookingDatesByGuide = catchAsync(async (req: Request, res: Response) => {
   const { guideId } = req.params;
-  const result = await BookingService.getBookingDatesByGuide(guideId);
+  const result = await BookingService.getBookingDatesByGuide(guideId as string);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
