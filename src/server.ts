@@ -10,22 +10,16 @@ async function main() {
   try {
     const port = Number(process.env.PORT) || 5000;
 
+    console.log("Attempting to seed admin...");
+    await seedAdmin();
+    console.log("Admin seeded successfully");
+
     server = app.listen(port, "0.0.0.0", () => {
       console.log(`🚀 Tourify Server is running on port ${port}`);
-
-      // DO NOT BLOCK SERVER START
-      setImmediate(async () => {
-        try {
-          await seedAdmin();
-          console.log("Admin seeded successfully");
-        } catch (err) {
-          console.error("Admin seeding failed:", err);
-        }
-      });
     });
-
   } catch (err) {
-    console.log("Error starting server:", err);
+    console.error("Error during startup:", err);
+    process.exit(1); // Exit if seeding or server start fails
   }
 }
 
