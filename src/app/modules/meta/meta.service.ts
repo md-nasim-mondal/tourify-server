@@ -83,16 +83,32 @@ const getGuideMetadata = async (guideId: string) => {
 
 // Tourist Stats
 const getTouristMetadata = async (touristId: string) => {
+  const now = new Date();
+  const today = new Date(now.setHours(0, 0, 0, 0));
+
   const totalBookings = await prisma.booking.count({ where: { touristId } });
+  
+  // Completed: Status is COMPLETED OR (Status is CONFIRMED and Date is in the past)
   const completedTrips = await prisma.booking.count({
-    where: { touristId, status: "COMPLETED" },
+    where: { 
+      touristId, 
+      OR: [
+        { status: "COMPLETED" },
+        { 
+          status: "CONFIRMED",
+          date: { lt: today }
+        }
+      ]
+    },
   });
+
+  // Upcoming: Status is CONFIRMED and Date is today or future
   const upcomingTrips = await prisma.booking.count({
     where: {
       touristId,
       status: "CONFIRMED",
       date: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        gte: today,
       },
     },
   });

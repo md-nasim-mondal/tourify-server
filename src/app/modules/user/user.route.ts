@@ -41,6 +41,13 @@ router.get(
   UserController.getAllUsers
 );
 
+// Get My Profile (All Authenticated Users)
+router.get(
+  "/me",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
+  UserController.getMyProfile
+);
+
 // Get Single User (Admin / Super Admin)
 router.get(
   "/:id",
@@ -54,12 +61,7 @@ router.get(
   UserController.getPublicUser
 );
 
-// Get My Profile (All Authenticated Users)
-router.get(
-  "/me",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
-  UserController.getMyProfile
-);
+
 
 // Update My Profile (All Authenticated Users)
 router.patch(
