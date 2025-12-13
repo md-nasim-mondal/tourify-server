@@ -2,18 +2,24 @@
   "name": "tourify-server",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "index.js",
   "prisma": {
     "schema": "./prisma/schema"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/server.js",
+    "start": "node ./dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
     "build": "tsc && tsc-alias",
     "lint": "eslint src/**/*.ts",
     "fix": "eslint src/**/*.ts --fix",
-    "seed": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/helpers/seed.ts"
+    "seed": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/helpers/seed.ts","db:generate": "prisma generate --schema=./prisma/schema",
+    "db:migrate": "prisma migrate --schema=./prisma/schema",
+    "db:push": "prisma db push --schema=./prisma/schema",
+    "db:pull": "prisma db pull --schema=./prisma/schema",
+    "db:studio": "prisma studio --schema=./prisma/schema",
+    "postinstall": "prisma generate --schema=./prisma/schema",
+    "stripe:webhook": "stripe listen --forward-to localhost:5000/webhook"
   },
   "keywords": [],
   "author": "nasim",
