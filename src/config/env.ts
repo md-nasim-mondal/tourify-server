@@ -8,6 +8,7 @@ interface EnvConfig {
   PORT: string;
   DATABASE_URL: string;
   CLIENT_URL: string;
+  SERVER_URL?: string;
   OPEN_ROUTER_API_KEY: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
@@ -90,6 +91,7 @@ const loadEnvVariables = (): EnvConfig => {
     PORT: process.env.PORT as string,
     DATABASE_URL: process.env.DATABASE_URL as string,
     CLIENT_URL: process.env.CLIENT_URL as string,
+    SERVER_URL: process.env.SERVER_URL as string,
     OPEN_ROUTER_API_KEY: process.env.OPEN_ROUTER_API_KEY as string,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,
