@@ -11,9 +11,12 @@ let server: Server;
 
 async function main() {
   try {
-    server = app.listen( Number(process.env.PORT) || envVars.PORT, () => {
-      console.log(`🚀 Tourify Server is running on port ${envVars.PORT}`);
-    });
+    const port = Number(process.env.PORT) || envVars.PORT;
+
+server = app.listen(port, () => {
+  console.log(`🚀 Tourify Server is running on port ${port}`);
+});
+
 
     // Optional: Seed Super Admin
     // await seedSuperAdmin();
