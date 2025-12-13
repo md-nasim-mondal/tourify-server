@@ -10,9 +10,18 @@ async function main() {
 
     server = app.listen(port, () => {
       console.log(`🚀 Tourify Server is running on port ${port}`);
+
+      // DO NOT BLOCK SERVER START
+      setImmediate(async () => {
+        try {
+          await seedAdmin();
+          console.log("Admin seeded successfully");
+        } catch (err) {
+          console.error("Admin seeding failed:", err);
+        }
+      });
     });
 
-    await seedAdmin();
   } catch (err) {
     console.log("Error starting server:", err);
   }
