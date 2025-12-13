@@ -5,9 +5,9 @@ import { paginationHelper } from "../../../helpers/paginationHelper";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
 import {
-  listingSearchableFields,
-  listingCategories,
-  listingLanguages,
+    listingSearchableFields,
+    listingCategories,
+    listingLanguages,
 } from "./listing.constants";
 import { fileUploader } from "../../../helpers/fileUploader";
 
@@ -32,8 +32,33 @@ const createListing = async (req: any, user: IAuthUser) => {
   }
 
   // Validate category
-  if (req.body.category && !listingCategories.includes(req.body.category)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  if (req.body.category) {
+    const categoriesArray = Array.isArray(req.body.category)
+      ? req.body.category
+      : [req.body.category];
+
+    const invalidCategories = categoriesArray.filter(
+      (cat: string) => !listingCategories.includes(cat)
+    );
+
+    if (invalidCategories.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid category(s): ${invalidCategories.join(", ")}`
+      );
+    }
+    // Join array to string for DB storage
+    req.body.category = categoriesArray.join(", ");
+  }
+
+  // Ensure duration is string
+  if (req.body.duration) {
+    req.body.duration = String(req.body.duration);
+  }
+
+  // Handle 'language' vs 'languages' mismatch
+  if (req.body.language) {
+      req.body.languages = req.body.language;
   }
 
   // Validate languages
@@ -435,23 +460,67 @@ const updateListing = async (id: string, req: any, user: IAuthUser) => {
   const files = req.files as Express.Multer.File[];
   const imagePaths: string[] = [];
 
-  // Upload new images if they exist
+  // Handle Images (Merge keptImages + New Uploads)
+  let finalImages: string[] = [];
+
+  // 1. Add kept images (if any)
+  if (req.body.keptImages) {
+    if (Array.isArray(req.body.keptImages)) {
+      finalImages = [...req.body.keptImages];
+    } else {
+      finalImages = [req.body.keptImages];
+    }
+  }
+
+  // 2. Add new uploads
   if (files && files.length > 0) {
     for (const file of files) {
       const uploaded = await fileUploader.uploadToCloudinary(file);
       if (uploaded?.secure_url) {
-        imagePaths.push(uploaded.secure_url);
+        finalImages.push(uploaded.secure_url);
       }
     }
-    req.body.images = imagePaths;
   }
 
-  // Validate category if provided
-  if (req.body.category && !listingCategories.includes(req.body.category)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  // Only update images if there's a change (either new files or keptImages explicitly sent)
+  // If keptImages is undefined (not sent), we might assume no change to images, 
+  // BUT the form logic sends keptImages as hidden inputs.
+  // So if keptImages is empty and no files, it means user removed all images or had none.
+  if (req.body.keptImages !== undefined || (files && files.length > 0)) {
+     req.body.images = finalImages;
+  }
+  
+  // Clean up auxiliary field
+  delete req.body.keptImages;
+
+  // Validate and Normalize category
+  if (req.body.category) {
+    const categoriesArray = Array.isArray(req.body.category)
+      ? req.body.category
+      : [req.body.category]; // Ensure it's an array for validation
+
+    const invalidCategories = categoriesArray.filter(
+      (cat: string) => !listingCategories.includes(cat)
+    );
+
+    if (invalidCategories.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid category(s): ${invalidCategories.join(", ")}`
+      );
+    }
+    
+    // Join array to string for DB storage (since DB category is String)
+    req.body.category = categoriesArray.join(", "); 
   }
 
-  // Validate languages if provided
+  // Handle 'language' vs 'languages' mismatch
+  if (req.body.language) {
+      req.body.languages = req.body.language;
+      delete req.body.language;
+  }
+
+  // Validate and Normalize languages
   if (req.body.languages) {
     const languagesArray = Array.isArray(req.body.languages)
       ? req.body.languages
@@ -467,11 +536,17 @@ const updateListing = async (id: string, req: any, user: IAuthUser) => {
         `Invalid language(s): ${invalidLanguages.join(", ")}`
       );
     }
+    req.body.languages = languagesArray; // Pass as array (DB is String[])
   }
 
   // Convert price to number if provided
   if (req.body.price) {
     req.body.price = Number(req.body.price);
+  }
+
+  // Convert duration to string if provided (DB is String)
+  if (req.body.duration) {
+    req.body.duration = String(req.body.duration);
   }
 
   // Convert maxGroupSize to number if provided
