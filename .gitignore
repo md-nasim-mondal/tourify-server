@@ -7,3 +7,7 @@ dist
 .vscode/
 
 /src/generated/prisma
+
+uploads/*
+!uploads/.gitkeep
+*.log
