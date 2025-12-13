@@ -6,6 +6,7 @@ model Listing {
   latitude    Float?
   longitude   Float?
   price       Float
+  status      ListingStatus @default(ACTIVE)
   
   // নতুন ফিল্ডস (রিকোয়ারমেন্ট অনুযায়ী)
   duration      String?    // "3 hours", "Full day"

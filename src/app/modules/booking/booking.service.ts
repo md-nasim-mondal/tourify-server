@@ -68,20 +68,37 @@ const createBooking = async (payload: any, user: IAuthUser) => {
   }
 
   const bookingDate = new Date(payload.date);
+  const hour = bookingDate.getHours();
+  const minutes = bookingDate.getMinutes();
 
-  // Check for existing bookings on same date
+  // 1. Enforce Start of Hour (e.g., 7:00, not 7:30)
+  if (minutes !== 0) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Bookings must start at the beginning of an hour (e.g., 8:00, not 8:30)!"
+    );
+  }
+
+  // 2. Enforce Time Range (7 AM to 5 PM)
+  // Assuming 5 PM is the last start time or end time? "7 ta theke 5 ta porjonto" -> 7 to 5.
+  // Usually means availability window. Let's allow Start Times: 07:00 to 17:00.
+  if (hour < 7 || hour > 17) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Bookings are only allowed between 7 AM and 5 PM!"
+    );
+  }
+
+  // 3. Check for existing bookings on THIS SPECIFIC SLOT (Exact Date Match)
   const existingBookings = await prisma.booking.findMany({
     where: {
       listingId: payload.listingId,
-      date: {
-        gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
-        lt: new Date(bookingDate.setHours(23, 59, 59, 999)),
-      },
+      date: bookingDate, // EXACT match for Time Slot
       status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
     },
   });
 
-  // Calculate total group size for this date
+  // Calculate total group size for this SPECIFIC SLOT
   const totalGroupSize =
     existingBookings.reduce(
       (sum, booking) => sum + (booking.groupSize || 1),
@@ -92,9 +109,9 @@ const createBooking = async (payload: any, user: IAuthUser) => {
   if (totalGroupSize > listing.maxGroupSize) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Not enough capacity for ${groupSize} people. Available: ${
+      `Not enough capacity for ${groupSize} people at ${hour}:00. available: ${
         listing.maxGroupSize - (totalGroupSize - groupSize)
-      } people for this date!`
+      }!`
     );
   }
 
@@ -174,6 +191,7 @@ const getAllBookings = async (options: any, user: IAuthUser) => {
     include: {
       listing: {
         select: {
+          id: true,
           title: true,
           price: true,
           images: true,
@@ -190,12 +208,19 @@ const getAllBookings = async (options: any, user: IAuthUser) => {
           photo: true,
         },
       },
+      payment: true,
+      review: { select: { id: true } },
     },
   });
 
   const total = await prisma.booking.count({ where: whereConditions });
 
-  return { meta: { page, limit, total }, data: result };
+  const data = result.map((b: any) => ({
+    ...b,
+    alreadyReviewed: !!b.review,
+  }));
+
+  return { meta: { page, limit, total }, data };
 };
 
 // 3. Get Single Booking (With Authorization Check)
@@ -213,6 +238,7 @@ const getSingleBooking = async (id: string, user: IAuthUser) => {
     include: {
       listing: true,
       tourist: true,
+      payment: true,
     },
   });
 
@@ -251,6 +277,14 @@ const updateBookingStatus = async (
     include: { listing: true },
   });
 
+  // Prevent any changes after completion
+  if (booking.status === BookingStatus.COMPLETED) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Completed bookings cannot be updated"
+    );
+  }
+
   // Authorization Logic
   if (user.role === UserRole.GUIDE) {
     // Guide can only update bookings for their listings
@@ -259,6 +293,31 @@ const updateBookingStatus = async (
         httpStatus.FORBIDDEN,
         "You can only manage bookings for your own listings!"
       );
+    }
+    // Guide transition rules
+    if (status === BookingStatus.CONFIRMED) {
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only pending bookings can be accepted"
+        );
+      }
+    }
+    if (status === BookingStatus.CANCELLED) {
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only pending bookings can be declined"
+        );
+      }
+    }
+    if (status === BookingStatus.COMPLETED) {
+      if (booking.status !== BookingStatus.CONFIRMED) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          "Only confirmed bookings can be marked as completed"
+        );
+      }
     }
   } else if (user.role === UserRole.TOURIST) {
     // Tourist can only CANCEL their own booking if it's still PENDING
@@ -272,6 +331,12 @@ const updateBookingStatus = async (
       throw new ApiError(
         httpStatus.BAD_REQUEST,
         "Tourists can only Cancel bookings!"
+      );
+    }
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Only pending bookings can be cancelled by tourist"
       );
     }
   }
@@ -302,10 +367,44 @@ const getBookingDatesByGuide = async (guideId: string) => {
   return bookings.map((booking) => booking.date);
 };
 
+// 6. Get Booked Slots for a Listing on a Specific Date
+// Useful for frontend to disable fully booked hourly slots
+const getBookedSlots = async (listingId: string, date: string) => {
+  const queryDate = new Date(date);
+  const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      listingId,
+      date: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+    },
+    select: {
+      date: true, // This holds the hour info
+      groupSize: true,
+    },
+  });
+
+  // Aggregate by hour
+  const hourlyUsage: Record<number, number> = {};
+  
+  bookings.forEach(b => {
+    const h = new Date(b.date).getHours();
+    hourlyUsage[h] = (hourlyUsage[h] || 0) + (b.groupSize || 1);
+  });
+
+  return hourlyUsage;
+};
+
 export const BookingService = {
   createBooking,
   getAllBookings,
   getSingleBooking,
   updateBookingStatus,
   getBookingDatesByGuide,
+  getBookedSlots,
 };

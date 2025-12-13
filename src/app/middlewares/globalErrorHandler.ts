@@ -53,6 +53,14 @@ const globalErrorHandler = (
   } else if (err instanceof Prisma.PrismaClientInitializationError) {
     message = "Prisma client failed to initialized!!";
     error = err.message;
+  } else if (err.name === "TokenExpiredError") {
+    message = "Token expired!";
+    error = err.message;
+    statusCode = httpStatus.UNAUTHORIZED;
+  } else if (err.name === "JsonWebTokenError") {
+    message = "Invalid token!";
+    error = err.message;
+    statusCode = httpStatus.UNAUTHORIZED;
   }
 
   // ? update for production

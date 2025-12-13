@@ -29,10 +29,18 @@ router.get(
   BookingController.getSingleBooking
 );
 
-// Get Booked Dates for a specific guide
+// Get Booked Slots for a specific listing and date
+router.get(
+  "/slots/:listingId",
+  // Allow public access or tourist+
+  BookingController.getBookedSlots
+);
+
+// Get all unique booked dates for a guide (For disabling calendar days if completely full?)
+// Currently used by frontend "guide-booked-dates"
 router.get(
   "/guide-booked-dates/:guideId",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
+  auth(UserRole.TOURIST, UserRole.GUIDE),
   BookingController.getBookingDatesByGuide
 );
 

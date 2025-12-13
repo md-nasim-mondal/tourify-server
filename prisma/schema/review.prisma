@@ -10,6 +10,9 @@ model Review {
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
+  bookingId String?  @unique // Optional initially to avoid migration issues with existing data, but logic should enforce it for new ones
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
   createdAt DateTime @default(now())
 
   @@map("reviews")

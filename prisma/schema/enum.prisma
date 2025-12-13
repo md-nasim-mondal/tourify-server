@@ -1,3 +1,4 @@
+
 // User Roles
 enum UserRole {
   SUPER_ADMIN
@@ -31,4 +32,9 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+enum ListingStatus {
+  ACTIVE
+  BLOCKED
 }

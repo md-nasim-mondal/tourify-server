@@ -41,6 +41,13 @@ router.get(
   UserController.getAllUsers
 );
 
+// Get My Profile (All Authenticated Users)
+router.get(
+  "/me",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
+  UserController.getMyProfile
+);
+
 // Get Single User (Admin / Super Admin)
 router.get(
   "/:id",
@@ -54,12 +61,7 @@ router.get(
   UserController.getPublicUser
 );
 
-// Get My Profile (All Authenticated Users)
-router.get(
-  "/me",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
-  UserController.getMyProfile
-);
+
 
 // Update My Profile (All Authenticated Users)
 router.patch(
@@ -106,6 +108,20 @@ router.patch(
   auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   validateRequest(UserValidation.updateRoleValidation),
   UserController.changeUserRole
+);
+
+// Soft Delete User
+router.delete(
+  "/:id/soft",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  UserController.softDeleteUser
+);
+
+// Hard Delete User
+router.delete(
+  "/:id/hard",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  UserController.hardDeleteUser
 );
 
 export const UserRoutes = router;

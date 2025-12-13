@@ -1,8 +1,10 @@
-import { BookingStatus, PaymentStatus } from "@prisma/client";
+import { BookingStatus, PaymentStatus, UserRole } from "@prisma/client";
 import httpStatus from "http-status";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
 import Stripe from "stripe";
+import { fileUploader } from "../../../helpers/fileUploader";
+import PDFDocument from "pdfkit";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
@@ -13,9 +15,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 const initiateStripePayment = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { 
+    include: {
       listing: true,
-      tourist: true 
+      tourist: true,
     },
   });
 
@@ -27,6 +29,15 @@ const initiateStripePayment = async (bookingId: string) => {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Cannot pay for a cancelled booking!"
+    );
+  }
+  if (
+    booking.status !== BookingStatus.CONFIRMED &&
+    booking.status !== BookingStatus.COMPLETED
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Booking must be accepted by the guide before payment"
     );
   }
 
@@ -51,9 +62,16 @@ const initiateStripePayment = async (bookingId: string) => {
           product_data: {
             name: booking.listing.title,
             description: `Booking for ${booking.date.toLocaleDateString()}`,
-            images: booking.listing.images.length > 0 ? [booking.listing.images[0]].filter((img): img is string => img !== undefined) : [],
+            images:
+              booking.listing.images.length > 0
+                ? [booking.listing.images[0]].filter(
+                    (img): img is string => img !== undefined
+                  )
+                : [],
           },
-          unit_amount: Math.round(booking.listing.price * 100), // Convert to cents
+          unit_amount: Math.round(
+            (booking.totalPrice || booking.listing.price) * 100
+          ),
         },
         quantity: 1,
       },
@@ -68,19 +86,36 @@ const initiateStripePayment = async (bookingId: string) => {
     },
   });
 
-  // Create Payment Record
-  const payment = await prisma.payment.create({
-    data: {
-      bookingId,
-      amount: booking.listing.price,
-      transactionId,
-      status: PaymentStatus.PENDING,
-      paymentGatewayData: {
-        stripeSessionId: session.id,
-        stripePaymentIntentId: session.payment_intent as string,
+  // Create or Update Payment Record
+  let payment;
+  if (existingPayment && existingPayment.status === PaymentStatus.PENDING) {
+    payment = await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        paymentGatewayData: {
+          ...(existingPayment.paymentGatewayData as any),
+          stripeSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
+          reinitiatedAt: new Date().toISOString(),
+        },
       },
-    },
-  });
+    });
+  } else {
+    payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        status: PaymentStatus.PENDING,
+        paymentGatewayData: {
+          stripeSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
+        },
+      },
+    });
+  }
 
   return {
     paymentId: payment.id,
@@ -106,6 +141,15 @@ const initiateSSLCommerzPayment = async (bookingId: string) => {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Cannot pay for a cancelled booking!"
+    );
+  }
+  if (
+    booking.status !== BookingStatus.CONFIRMED &&
+    booking.status !== BookingStatus.COMPLETED
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Booking must be accepted by the guide before payment"
     );
   }
 
@@ -141,27 +185,43 @@ const initiateSSLCommerzPayment = async (bookingId: string) => {
     product_profile: "general",
   };
 
-  // Create Payment Record first
-  const payment = await prisma.payment.create({
-    data: {
-      bookingId,
-      amount: booking.listing.price,
-      transactionId,
-      status: PaymentStatus.PENDING,
-      paymentGatewayData: {
-        gateway: "SSLCommerz",
-        initiatedAt: new Date().toISOString(),
+  // Create or Update Payment Record first
+  let payment;
+  if (existingPayment && existingPayment.status === PaymentStatus.PENDING) {
+    payment = await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        paymentGatewayData: {
+          gateway: "SSLCommerz",
+          reinitiatedAt: new Date().toISOString(),
+        },
       },
-    },
-  });
+    });
+  } else {
+    payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount: booking.totalPrice || booking.listing.price,
+        transactionId,
+        status: PaymentStatus.PENDING,
+        paymentGatewayData: {
+          gateway: "SSLCommerz",
+          initiatedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
 
   // In production, you would make API call to SSLCommerz
   // const response = await axios.post("https://sandbox.sslcommerz.com/gwprocess/v4/api.php", sslData);
-  
+
   // For demo, return a mock URL
-  const paymentUrl = process.env.NODE_ENV === "production"
-    ? `https://sandbox.sslcommerz.com/gwprocess/v4/api.php?tran_id=${transactionId}`
-    : `${process.env.CLIENT_URL}/payment/demo-success?paymentId=${payment.id}`;
+  const paymentUrl =
+    process.env.NODE_ENV === "production"
+      ? `https://sandbox.sslcommerz.com/gwprocess/v4/api.php?tran_id=${transactionId}`
+      : `${process.env.CLIENT_URL}/payment/demo-success?paymentId=${payment.id}`;
 
   return {
     paymentId: payment.id,
@@ -196,10 +256,10 @@ const confirmStripePayment = async (sessionId: string) => {
   // Update Payment Status
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         stripePaymentStatus: session.payment_status,
         paidAt: new Date().toISOString(),
       },
@@ -211,6 +271,9 @@ const confirmStripePayment = async (sessionId: string) => {
     where: { id: payment.bookingId },
     data: { status: BookingStatus.CONFIRMED },
   });
+
+  // Generate and store receipt
+  await generateAndStoreReceipt(updatedPayment.id);
 
   return updatedPayment;
 };
@@ -224,10 +287,10 @@ const confirmPayment = async (paymentId: string) => {
   // Update Payment Status to PAID
   const updatedPayment = await prisma.payment.update({
     where: { id: paymentId },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         confirmedAt: new Date().toISOString(),
         confirmedBy: "MANUAL",
       },
@@ -239,6 +302,9 @@ const confirmPayment = async (paymentId: string) => {
     where: { id: payment.bookingId },
     data: { status: BookingStatus.CONFIRMED },
   });
+
+  // Generate and store receipt
+  await generateAndStoreReceipt(updatedPayment.id);
 
   return updatedPayment;
 };
@@ -265,10 +331,10 @@ const handleSSLCommerzWebhook = async (payload: any) => {
   // Update Payment
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: { 
+    data: {
       status: PaymentStatus.PAID,
       paymentGatewayData: {
-        ...payment.paymentGatewayData as any,
+        ...(payment.paymentGatewayData as any),
         sslcommerzValId: val_id,
         verifiedAt: new Date().toISOString(),
       },
@@ -280,6 +346,9 @@ const handleSSLCommerzWebhook = async (payload: any) => {
     where: { id: payment.bookingId },
     data: { status: BookingStatus.CONFIRMED },
   });
+
+  // Generate and store receipt
+  await generateAndStoreReceipt(updatedPayment.id);
 
   return updatedPayment;
 };
@@ -309,6 +378,170 @@ const getPaymentStatus = async (paymentId: string) => {
   return payment;
 };
 
+// Compose receipt data and upload to Cloudinary, then store secure_url inside paymentGatewayData.receiptUrl
+const generateAndStoreReceipt = async (paymentId: string) => {
+  const payment = await prisma.payment.findUniqueOrThrow({
+    where: { id: paymentId },
+    include: {
+      booking: {
+        include: {
+          listing: {
+            select: { title: true, guideId: true, guide: { select: { name: true } } },
+          },
+          tourist: { select: { name: true, email: true } },
+        },
+      },
+    },
+  });
+  const appName = "Tourify";
+  const appUrl = process.env.CLIENT_URL || "http://localhost:3000";
+  const paidAt =
+    typeof payment.paymentGatewayData === "object" &&
+    payment.paymentGatewayData !== null &&
+    "paidAt" in (payment.paymentGatewayData as any)
+      ? (payment.paymentGatewayData as any).paidAt
+      : new Date().toISOString();
+
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  const chunks: Buffer[] = [];
+  doc.on("data", (d: Buffer) => chunks.push(d));
+  const done: Promise<Buffer> = new Promise((resolve) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+
+  doc.fillColor("#111827").fontSize(22).text(`${appName} Payment Receipt`, { align: "center" });
+  doc.moveDown(0.5);
+  doc.fillColor("#6b7280").fontSize(12).text(appUrl, { align: "center", link: appUrl, underline: true });
+  doc.moveDown(1.5);
+
+  doc.fillColor("#111827").fontSize(16).text("Booking & Payment Details");
+  doc.moveDown(0.5);
+  doc.fontSize(12).fillColor("#374151");
+  doc.text(`Payment ID: ${payment.id}`);
+  doc.text(`Transaction ID: ${payment.transactionId}`);
+  doc.text(`Status: ${payment.status}`);
+  doc.text(`Amount: $${payment.amount.toFixed(2)}`);
+  doc.text(`Paid At: ${new Date(paidAt).toLocaleString()}`);
+  doc.moveDown(0.5);
+  doc.text(`Booking ID: ${payment.bookingId}`);
+  doc.text(`Booking Date: ${new Date((payment as any).booking?.date).toLocaleDateString()}`);
+  doc.text(`Tour: ${(payment as any).booking?.listing?.title}`);
+  doc.moveDown(0.5);
+
+  doc.fillColor("#111827").fontSize(16).text("Participants");
+  doc.moveDown(0.5);
+  doc.fontSize(12).fillColor("#374151");
+  doc.text(`Tourist: ${(payment as any).booking?.tourist?.name} (${(payment as any).booking?.tourist?.email})`);
+  doc.text(`Guide: ${(payment as any).booking?.listing?.guide?.name}`);
+  doc.moveDown(1);
+
+  doc.fillColor("#6b7280").fontSize(10).text("This receipt is generated by Tourify.", { align: "center" });
+  doc.end();
+
+  const buffer = await done;
+  const upload = await fileUploader.uploadBufferToCloudinary(
+    buffer,
+    `receipt-${payment.id}`,
+    "raw",
+    "pdf"
+  );
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      paymentGatewayData: {
+        ...(payment.paymentGatewayData as any),
+        receiptUrl: upload.secure_url,
+      },
+    },
+  });
+  return upload.secure_url;
+};
+
+// Return receipt URL with authorization checks
+const getReceiptUrl = async (paymentId: string, user: any) => {
+  const payment = await prisma.payment.findUniqueOrThrow({
+    where: { id: paymentId },
+    include: { booking: { include: { listing: true } } },
+  });
+  const touristOwns = payment.booking.touristId === user.id;
+  const guideOwns = payment.booking.listing.guideId === user.id;
+  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(user.role);
+  if (!touristOwns && !guideOwns && !isAdmin) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Not authorized to access this receipt");
+  }
+  let receiptUrl =
+    typeof payment.paymentGatewayData === "object" &&
+    payment.paymentGatewayData !== null &&
+    "receiptUrl" in (payment.paymentGatewayData as any)
+      ? (payment.paymentGatewayData as any).receiptUrl
+      : null;
+  if (!receiptUrl) {
+    receiptUrl = await generateAndStoreReceipt(payment.id);
+  }
+  return receiptUrl;
+};
+
+const getGuidePayments = async (options: any, user: any) => {
+    const page = Number(options.page) || 1;
+    const limit = Number(options.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const result = await prisma.payment.findMany({
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        booking: {
+          include: {
+            listing: {
+              select: { title: true },
+            },
+            tourist: {
+              select: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    const total = await prisma.payment.count({
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+    });
+
+    const earningsAgg = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+    });
+
+    return {
+      meta: { page, limit, total },
+      data: result,
+      totalEarnings: earningsAgg._sum.amount || 0,
+    };
+};
+
 export const PaymentService = {
   initiateStripePayment,
   initiateSSLCommerzPayment,
@@ -316,4 +549,66 @@ export const PaymentService = {
   confirmPayment,
   handleSSLCommerzWebhook,
   getPaymentStatus,
+  getReceiptUrl,
+  async getAllPayments(options: any, _user: any) {
+    const page = Number(options.page) || 1;
+    const limit = Number(options.limit) || 10;
+    const skip = (page - 1) * limit;
+    const whereConditions: any = {};
+    if (_user.role === UserRole.TOURIST) {
+      whereConditions.booking = { touristId: _user.id };
+    } else if (_user.role === UserRole.GUIDE) {
+      whereConditions.booking = { listing: { guideId: _user.id } }; // Although getGuidePayments exists, this makes getAllPayments robust
+    }
+
+    const result = await prisma.payment.findMany({
+      where: whereConditions,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        booking: {
+          include: {
+            listing: {
+              select: { title: true, guideId: true },
+            },
+            tourist: {
+              select: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+    const total = await prisma.payment.count({ where: whereConditions });
+    return { meta: { page, limit, total }, data: result };
+  },
+  async releaseGuidePayout(paymentId: string) {
+    const payment = await prisma.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+      include: { booking: { include: { listing: true } } },
+    });
+    if (payment.status !== PaymentStatus.PAID) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Payment not settled");
+    }
+    const booking = payment.booking;
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Booking not completed");
+    }
+    const platformFeeRate = 0.1;
+    const payoutAmount =
+      (payment.amount || booking.listing.price) * (1 - platformFeeRate);
+    const updated = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        paymentGatewayData: {
+          ...(payment.paymentGatewayData as any),
+          payoutReleasedAt: new Date().toISOString(),
+          payoutAmount,
+          guideId: booking.listing.guideId,
+        },
+      },
+    });
+    return updated;
+  },
+  getGuidePayments,
 };

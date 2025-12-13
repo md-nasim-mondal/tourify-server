@@ -57,4 +57,30 @@ const upload = multer({ storage: storage });
 export const fileUploader = {
   upload,
   uploadToCloudinary,
+  async uploadBufferToCloudinary(
+    content: Buffer,
+    filename: string,
+    resourceType: "raw" | "image" = "raw",
+    format?: string
+  ) {
+    cloudinary.config({
+      cloud_name: envVars.cloudinary.CLOUDINARY_CLOUD_NAME as string,
+      api_key: envVars.cloudinary.CLOUDINARY_API_KEY as string,
+      api_secret: envVars.cloudinary.CLOUDINARY_API_SECRET as string,
+    });
+    return await new Promise<any>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: resourceType,
+          public_id: `${filename}-${Date.now()}`,
+          ...(format ? { format } : {}),
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      stream.end(content);
+    });
+  },
 };

@@ -52,11 +52,29 @@ const updateBookingStatus = catchAsync(async (req: Request & { user?: any }, res
 
 const getBookingDatesByGuide = catchAsync(async (req: Request, res: Response) => {
   const { guideId } = req.params;
-  const result = await BookingService.getBookingDatesByGuide(guideId);
+  const result = await BookingService.getBookingDatesByGuide(guideId as string);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Booked dates fetched successfully!",
+    data: result,
+  });
+});
+
+// 6. Get Booked Slots (Public/Tourist)
+const getBookedSlots = catchAsync(async (req: Request, res: Response) => {
+  const { listingId } = req.params;
+  const { date } = req.query; // Expects ISO string or YYYY-MM-DD
+  
+  if (!date) {
+      throw new Error("Date is required!");
+  }
+
+  const result = await BookingService.getBookedSlots(listingId as string, String(date));
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Booked slots retrieved successfully!",
     data: result,
   });
 });
@@ -67,4 +85,5 @@ export const BookingController = {
   getSingleBooking,
   updateBookingStatus,
   getBookingDatesByGuide,
+  getBookedSlots,
 };

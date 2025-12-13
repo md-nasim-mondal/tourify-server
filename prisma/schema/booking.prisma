@@ -13,6 +13,7 @@ model Booking {
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   payment Payment? // Relation to Payment (Optional initially)
+  review  Review?  // Relation to Review
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

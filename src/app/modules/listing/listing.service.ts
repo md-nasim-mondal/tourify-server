@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Prisma, UserRole } from "@prisma/client";
 import httpStatus from "http-status";
 import { IAuthUser } from "../../interfaces/common";
@@ -6,11 +5,22 @@ import { paginationHelper } from "../../../helpers/paginationHelper";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
 import {
-  listingSearchableFields,
-  listingCategories,
-  listingLanguages,
+    listingSearchableFields,
+    listingCategories,
+    listingLanguages,
 } from "./listing.constants";
 import { fileUploader } from "../../../helpers/fileUploader";
+
+// ... existing code (simplified for brevity, ensuring existing functions work) ...
+// NOTE: For brevity, I am relying on the existing file content structure.
+// Since replace_file_content failed before on large chunks, I will target the header and the end of file separately if needed or try a robust method.
+// Actually, overwrite is safer here if I had the full content, but I only saw up to 598 lines, might be close to full.
+// I will just perform smaller targeted edits.
+
+// 1. Fix Imports
+// 2. Add function at bottom
+
+// ... (logic handled in separate Replace calls below for safety)
 
 // 1. Create Listing
 const createListing = async (req: any, user: IAuthUser) => {
@@ -22,8 +32,33 @@ const createListing = async (req: any, user: IAuthUser) => {
   }
 
   // Validate category
-  if (req.body.category && !listingCategories.includes(req.body.category)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  if (req.body.category) {
+    const categoriesArray = Array.isArray(req.body.category)
+      ? req.body.category
+      : [req.body.category];
+
+    const invalidCategories = categoriesArray.filter(
+      (cat: string) => !listingCategories.includes(cat)
+    );
+
+    if (invalidCategories.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid category(s): ${invalidCategories.join(", ")}`
+      );
+    }
+    // Join array to string for DB storage
+    req.body.category = categoriesArray.join(", ");
+  }
+
+  // Ensure duration is string
+  if (req.body.duration) {
+    req.body.duration = String(req.body.duration);
+  }
+
+  // Handle 'language' vs 'languages' mismatch
+  if (req.body.language) {
+      req.body.languages = req.body.language;
   }
 
   // Validate languages
@@ -97,8 +132,18 @@ const createListing = async (req: any, user: IAuthUser) => {
 // 2. Get All Listings (Public + Filter + Search)
 const getAllListings = async (params: any, options: any) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
-  const { searchTerm, minPrice, maxPrice, category, language, ...filterData } =
-    params;
+  const {
+    searchTerm,
+    minPrice,
+    maxPrice,
+    category,
+    language,
+    page: _page,
+    limit: _limit,
+    sortBy: _sortBy,
+    sortOrder: _sortOrder,
+    ...filterData
+  } = params;
 
   const andConditions: Prisma.ListingWhereInput[] = [];
 
@@ -212,8 +257,18 @@ const getMyCreateListings = async (
   user: IAuthUser
 ) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
-  const { searchTerm, minPrice, maxPrice, category, language, ...filterData } =
-    params;
+  const {
+    searchTerm,
+    minPrice,
+    maxPrice,
+    category,
+    language,
+    page: _page,
+    limit: _limit,
+    sortBy: _sortBy,
+    sortOrder: _sortOrder,
+    ...filterData
+  } = params;
 
   const andConditions: Prisma.ListingWhereInput[] = [];
 
@@ -405,23 +460,67 @@ const updateListing = async (id: string, req: any, user: IAuthUser) => {
   const files = req.files as Express.Multer.File[];
   const imagePaths: string[] = [];
 
-  // Upload new images if they exist
+  // Handle Images (Merge keptImages + New Uploads)
+  let finalImages: string[] = [];
+
+  // 1. Add kept images (if any)
+  if (req.body.keptImages) {
+    if (Array.isArray(req.body.keptImages)) {
+      finalImages = [...req.body.keptImages];
+    } else {
+      finalImages = [req.body.keptImages];
+    }
+  }
+
+  // 2. Add new uploads
   if (files && files.length > 0) {
     for (const file of files) {
       const uploaded = await fileUploader.uploadToCloudinary(file);
       if (uploaded?.secure_url) {
-        imagePaths.push(uploaded.secure_url);
+        finalImages.push(uploaded.secure_url);
       }
     }
-    req.body.images = imagePaths;
   }
 
-  // Validate category if provided
-  if (req.body.category && !listingCategories.includes(req.body.category)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid category!");
+  // Only update images if there's a change (either new files or keptImages explicitly sent)
+  // If keptImages is undefined (not sent), we might assume no change to images, 
+  // BUT the form logic sends keptImages as hidden inputs.
+  // So if keptImages is empty and no files, it means user removed all images or had none.
+  if (req.body.keptImages !== undefined || (files && files.length > 0)) {
+     req.body.images = finalImages;
+  }
+  
+  // Clean up auxiliary field
+  delete req.body.keptImages;
+
+  // Validate and Normalize category
+  if (req.body.category) {
+    const categoriesArray = Array.isArray(req.body.category)
+      ? req.body.category
+      : [req.body.category]; // Ensure it's an array for validation
+
+    const invalidCategories = categoriesArray.filter(
+      (cat: string) => !listingCategories.includes(cat)
+    );
+
+    if (invalidCategories.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Invalid category(s): ${invalidCategories.join(", ")}`
+      );
+    }
+    
+    // Join array to string for DB storage (since DB category is String)
+    req.body.category = categoriesArray.join(", "); 
   }
 
-  // Validate languages if provided
+  // Handle 'language' vs 'languages' mismatch
+  if (req.body.language) {
+      req.body.languages = req.body.language;
+      delete req.body.language;
+  }
+
+  // Validate and Normalize languages
   if (req.body.languages) {
     const languagesArray = Array.isArray(req.body.languages)
       ? req.body.languages
@@ -437,11 +536,17 @@ const updateListing = async (id: string, req: any, user: IAuthUser) => {
         `Invalid language(s): ${invalidLanguages.join(", ")}`
       );
     }
+    req.body.languages = languagesArray; // Pass as array (DB is String[])
   }
 
   // Convert price to number if provided
   if (req.body.price) {
     req.body.price = Number(req.body.price);
+  }
+
+  // Convert duration to string if provided (DB is String)
+  if (req.body.duration) {
+    req.body.duration = String(req.body.duration);
   }
 
   // Convert maxGroupSize to number if provided
@@ -544,6 +649,27 @@ const getMapData = async (params: any) => {
   return result;
 };
 
+const updateListingStatus = async (
+  id: string,
+  status: any, // Will be Prisma.ListingStatus after generation
+  user: IAuthUser
+) => {
+  const listing = await prisma.listing.findUniqueOrThrow({ where: { id } });
+
+  // Authorization checking
+  if (user && user.role === UserRole.GUIDE && listing.guideId !== user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You can only update your own listings!");
+  }
+
+  // @ts-ignore
+  const result = await prisma.listing.update({
+    where: { id },
+    data: { status },
+  });
+
+  return result;
+};
+
 export const ListingService = {
   createListing,
   getAllListings,
@@ -554,4 +680,5 @@ export const ListingService = {
   getLanguages,
   getMapData,
   getMyCreateListings,
+  updateListingStatus,
 };
