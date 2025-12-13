@@ -13,7 +13,6 @@ const createListingValidation = z.object({
     category: z.string().optional(),
     languages: z.array(z.string()).optional(),
     meetingPoint: z.string().optional(),
-    // Images will be handled via Multer, validation checks if array is present
   }),
 });
 
@@ -33,7 +32,14 @@ const updateListingValidation = z.object({
   }),
 });
 
+const updateListingStatusValidation = z.object({
+  body: z.object({
+    status: z.enum(["ACTIVE", "BLOCKED"]),
+  }),
+});
+
 export const ListingValidation = {
   createListingValidation,
   updateListingValidation,
+  updateListingStatusValidation,
 };

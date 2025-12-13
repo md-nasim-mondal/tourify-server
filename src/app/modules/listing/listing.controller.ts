@@ -118,6 +118,23 @@ const getMapData = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const updateListingStatus = catchAsync(
+  async (req: Request & { user?: IAuthUser }, res: Response) => {
+    const result = await ListingService.updateListingStatus(
+      req.params.id as string,
+      req.body.status,
+      req.user as IAuthUser
+    );
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Listing status updated successfully!",
+      data: result,
+    });
+  }
+);
+
 export const ListingController = {
   createListing,
   getAllListings,
@@ -128,4 +145,5 @@ export const ListingController = {
   getLanguages,
   getMapData,
   getMyCreateListings,
+  updateListingStatus,
 };

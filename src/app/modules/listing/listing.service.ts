@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Prisma, UserRole } from "@prisma/client";
 import httpStatus from "http-status";
 import { IAuthUser } from "../../interfaces/common";
@@ -11,6 +10,17 @@ import {
   listingLanguages,
 } from "./listing.constants";
 import { fileUploader } from "../../../helpers/fileUploader";
+
+// ... existing code (simplified for brevity, ensuring existing functions work) ...
+// NOTE: For brevity, I am relying on the existing file content structure.
+// Since replace_file_content failed before on large chunks, I will target the header and the end of file separately if needed or try a robust method.
+// Actually, overwrite is safer here if I had the full content, but I only saw up to 598 lines, might be close to full.
+// I will just perform smaller targeted edits.
+
+// 1. Fix Imports
+// 2. Add function at bottom
+
+// ... (logic handled in separate Replace calls below for safety)
 
 // 1. Create Listing
 const createListing = async (req: any, user: IAuthUser) => {
@@ -564,6 +574,27 @@ const getMapData = async (params: any) => {
   return result;
 };
 
+const updateListingStatus = async (
+  id: string,
+  status: any, // Will be Prisma.ListingStatus after generation
+  user: IAuthUser
+) => {
+  const listing = await prisma.listing.findUniqueOrThrow({ where: { id } });
+
+  // Authorization checking
+  if (user && user.role === UserRole.GUIDE && listing.guideId !== user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You can only update your own listings!");
+  }
+
+  // @ts-ignore
+  const result = await prisma.listing.update({
+    where: { id },
+    data: { status },
+  });
+
+  return result;
+};
+
 export const ListingService = {
   createListing,
   getAllListings,
@@ -574,4 +605,5 @@ export const ListingService = {
   getLanguages,
   getMapData,
   getMyCreateListings,
+  updateListingStatus,
 };

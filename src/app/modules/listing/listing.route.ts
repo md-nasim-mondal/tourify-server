@@ -66,4 +66,12 @@ router.delete(
   ListingController.deleteListing
 );
 
+// Update Listing Status (Admin/Guide)
+router.patch(
+  "/:id/status",
+  auth(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.GUIDE),
+  validateRequest(ListingValidation.updateListingStatusValidation),
+  ListingController.updateListingStatus
+);
+
 export const ListingRoutes = router;

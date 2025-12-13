@@ -1,4 +1,4 @@
-import { BookingStatus, PaymentStatus } from "@prisma/client";
+import { BookingStatus, PaymentStatus, UserRole } from "@prisma/client";
 import httpStatus from "http-status";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
@@ -554,7 +554,15 @@ export const PaymentService = {
     const page = Number(options.page) || 1;
     const limit = Number(options.limit) || 10;
     const skip = (page - 1) * limit;
+    const whereConditions: any = {};
+    if (_user.role === UserRole.TOURIST) {
+      whereConditions.booking = { touristId: _user.id };
+    } else if (_user.role === UserRole.GUIDE) {
+      whereConditions.booking = { listing: { guideId: _user.id } }; // Although getGuidePayments exists, this makes getAllPayments robust
+    }
+
     const result = await prisma.payment.findMany({
+      where: whereConditions,
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
@@ -571,7 +579,7 @@ export const PaymentService = {
         },
       },
     });
-    const total = await prisma.payment.count();
+    const total = await prisma.payment.count({ where: whereConditions });
     return { meta: { page, limit, total }, data: result };
   },
   async releaseGuidePayout(paymentId: string) {

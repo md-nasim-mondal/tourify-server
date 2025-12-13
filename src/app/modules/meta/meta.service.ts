@@ -92,7 +92,7 @@ const getTouristMetadata = async (touristId: string) => {
       touristId,
       status: "CONFIRMED",
       date: {
-        gte: new Date(),
+        gte: new Date(new Date().setHours(0, 0, 0, 0)),
       },
     },
   });
