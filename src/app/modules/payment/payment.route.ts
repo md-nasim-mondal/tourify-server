@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get(
   "/",
-  auth(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  auth(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.TOURIST),
   PaymentController.getAllPayments
 );
 
