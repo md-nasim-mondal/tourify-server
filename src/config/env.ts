@@ -50,7 +50,6 @@ interface EnvConfig {
 const loadEnvVariables = (): EnvConfig => {
   const requiredEnvVariables: string[] = [
     "NODE_ENV",
-    "PORT",
     "DATABASE_URL",
     "CLIENT_URL",
     "OPEN_ROUTER_API_KEY",

@@ -6,6 +6,7 @@ import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import notFound from "./app/middlewares/notFound";
 import envVars from "./config/env";
 
+
 const app: Application = express();
 
 // Parsers
