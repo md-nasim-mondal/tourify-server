@@ -88,7 +88,7 @@ const loadEnvVariables = (): EnvConfig => {
 
   return {
     NODE_ENV: process.env.NODE_ENV as "development" | "production",
-    PORT: process.env.PORT as string,
+    PORT: process.env.PORT as string || "5000",
     DATABASE_URL: process.env.DATABASE_URL as string,
     CLIENT_URL: process.env.CLIENT_URL as string,
     SERVER_URL: process.env.SERVER_URL as string,

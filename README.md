@@ -132,6 +132,7 @@ PORT=5000
 
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/tourify_db?schema=public"
+DIRECT_URL="postgresql://user:password@localhost:5432/tourify_db?schema=public" # Required for Supabase/Prisma migrations
 
 # Cloudinary (for image uploads)
 CLOUDINARY_CLOUD_NAME=<Your Cloudinary Cloud Name>
@@ -145,8 +146,9 @@ OPEN_ROUTER_API_KEY=<Your OpenAI or OpenRouter API Key>
 STRIPE_SECRET_KEY=<Your Stripe Secret Key>
 STRIPE_WEBHOOK_SECRET=<Your Stripe Webhook Secret>
 
-# Client URL (for redirects)
-CLIENT_URL=<Your Frontend URL, e.g., http://localhost:3000>
+# URLs
+CLIENT_URL=<Your Frontend URL, e.g., http://localhost:3000 or https://tourify-client.vercel.app>
+SERVER_URL=<Your Backend URL, e.g., http://localhost:5000 or https://tourify-server.onrender.com>
 
 # Nodemailer for email sending
 EMAIL_SENDER_EMAIL=<Your Email Address>
@@ -212,6 +214,27 @@ npm run dev
 ```
 
 The server will be running at [http://localhost:5000](http://localhost:5000).
+
+## 🚀 Deployment Guide (Render + Supabase)
+
+### 1. Database Setup (Supabase)
+1.  Create a project on Supabase.
+2.  Go to **Project Settings** -> **Database** -> **Connection String** -> **Poolers**.
+3.  Copy the **Transaction URL** (Port 6543) -> Use this as `DATABASE_URL`.
+4.  Copy the **Session URL** (Port 5432) -> Use this as `DIRECT_URL`.
+
+### 2. Backend Setup (Render)
+1.  Create a **Web Service** on Render connected to your repo.
+2.  **Build Command:** `bash render-build.sh`
+3.  **Start Command:** `npm run start`
+4.  **Environment Variables:** Add all variables from `.env.example`.
+    *   **CRITICAL:** Set `SERVER_URL` to your Render service URL (e.g., `https://tourify-server.onrender.com`).
+    *   Set `NODE_ENV` to `production`.
+
+### 3. Self-Ping Mechanism
+This server includes a self-ping mechanism to prevent Render from sleeping and to keep the Supabase connection active.
+*   It pings `${SERVER_URL}/api/v1/listings?limit=1` every 9 minutes.
+*   Ensure `SERVER_URL` is set correctly in Render environment variables.
 
 ---
 
