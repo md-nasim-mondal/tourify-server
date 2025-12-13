@@ -110,4 +110,18 @@ router.patch(
   UserController.changeUserRole
 );
 
+// Soft Delete User
+router.delete(
+  "/:id/soft",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  UserController.softDeleteUser
+);
+
+// Hard Delete User
+router.delete(
+  "/:id/hard",
+  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  UserController.hardDeleteUser
+);
+
 export const UserRoutes = router;

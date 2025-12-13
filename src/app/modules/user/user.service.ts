@@ -304,6 +304,25 @@ const changeUserRole = async (
   });
 };
 
+// 10. Soft Delete User (Set status to DELETED/BLOCKED)
+const softDeleteUser = async (id: string) => {
+  await prisma.user.findUniqueOrThrow({ where: { id } });
+  
+  return await prisma.user.update({
+    where: { id },
+    data: { status: UserStatus.BLOCKED }, // Using BLOCKED as "Soft Deleted" based on enum
+  });
+};
+
+// 11. Hard Delete User (Remove from DB)
+const hardDeleteUser = async (id: string) => {
+  await prisma.user.findUniqueOrThrow({ where: { id } });
+
+  return await prisma.user.delete({
+    where: { id },
+  });
+};
+
 export const UserService = {
   createAdmin,
   createGuide,
@@ -315,4 +334,6 @@ export const UserService = {
   updateUser,
   changeUserStatus,
   changeUserRole,
+  softDeleteUser,
+  hardDeleteUser,
 };

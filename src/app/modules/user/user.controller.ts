@@ -141,6 +141,28 @@ const changeUserRole = catchAsync(
   }
 );
 
+const softDeleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await UserService.softDeleteUser(id as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User soft deleted successfully!",
+    data: result,
+  });
+});
+
+const hardDeleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await UserService.hardDeleteUser(id as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User hard deleted successfully!",
+    data: result,
+  });
+});
+
 export const UserController = {
   createAdmin,
   createGuide,
@@ -152,4 +174,6 @@ export const UserController = {
   updateUser,
   changeUserStatus,
   changeUserRole,
+  softDeleteUser,
+  hardDeleteUser,
 };
