@@ -1,14 +1,17 @@
 /* eslint-disable no-console */
+import dotenv from "dotenv";
+import path from "path";
 import { Server } from "http";
 import app from "./app";
 import envVars from "./config/env";
 import { seedAdmin } from "./helpers/seed";
+dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 let server: Server;
 
 async function main() {
   try {
-    server = app.listen(envVars.PORT, () => {
+    server = app.listen( Number(process.env.PORT) || envVars.PORT, () => {
       console.log(`🚀 Tourify Server is running on port ${envVars.PORT}`);
     });
 
