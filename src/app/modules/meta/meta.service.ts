@@ -97,10 +97,19 @@ const getTouristMetadata = async (touristId: string) => {
     },
   });
 
+  const spendAgg = await prisma.payment.aggregate({
+    _sum: { amount: true },
+    where: {
+      status: "PAID",
+      booking: { touristId },
+    },
+  });
+
   return {
     totalBookings,
     completedTrips,
     upcomingTrips,
+    totalSpend: spendAgg._sum.amount || 0,
   };
 };
 

@@ -31,7 +31,10 @@ const initiateStripePayment = async (bookingId: string) => {
       "Cannot pay for a cancelled booking!"
     );
   }
-  if (booking.status !== BookingStatus.CONFIRMED) {
+  if (
+    booking.status !== BookingStatus.CONFIRMED &&
+    booking.status !== BookingStatus.COMPLETED
+  ) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Booking must be accepted by the guide before payment"
@@ -140,7 +143,10 @@ const initiateSSLCommerzPayment = async (bookingId: string) => {
       "Cannot pay for a cancelled booking!"
     );
   }
-  if (booking.status !== BookingStatus.CONFIRMED) {
+  if (
+    booking.status !== BookingStatus.CONFIRMED &&
+    booking.status !== BookingStatus.COMPLETED
+  ) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Booking must be accepted by the guide before payment"
@@ -475,6 +481,67 @@ const getReceiptUrl = async (paymentId: string, user: any) => {
   return receiptUrl;
 };
 
+const getGuidePayments = async (options: any, user: any) => {
+    const page = Number(options.page) || 1;
+    const limit = Number(options.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const result = await prisma.payment.findMany({
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        booking: {
+          include: {
+            listing: {
+              select: { title: true },
+            },
+            tourist: {
+              select: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    const total = await prisma.payment.count({
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+    });
+
+    const earningsAgg = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        booking: {
+          listing: {
+            guideId: user.id,
+          },
+        },
+        status: PaymentStatus.PAID,
+      },
+    });
+
+    return {
+      meta: { page, limit, total },
+      data: result,
+      totalEarnings: earningsAgg._sum.amount || 0,
+    };
+};
+
 export const PaymentService = {
   initiateStripePayment,
   initiateSSLCommerzPayment,
@@ -535,4 +602,5 @@ export const PaymentService = {
     });
     return updated;
   },
+  getGuidePayments,
 };

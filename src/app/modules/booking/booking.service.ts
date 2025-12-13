@@ -192,12 +192,18 @@ const getAllBookings = async (options: any, user: IAuthUser) => {
         },
       },
       payment: true,
+      review: { select: { id: true } },
     },
   });
 
   const total = await prisma.booking.count({ where: whereConditions });
 
-  return { meta: { page, limit, total }, data: result };
+  const data = result.map((b: any) => ({
+    ...b,
+    alreadyReviewed: !!b.review,
+  }));
+
+  return { meta: { page, limit, total }, data };
 };
 
 // 3. Get Single Booking (With Authorization Check)
@@ -289,12 +295,10 @@ const updateBookingStatus = async (
       }
     }
     if (status === BookingStatus.COMPLETED) {
-      // Completion allowed only after tour date has passed and status was confirmed
-      const now = new Date();
-      if (booking.status !== BookingStatus.CONFIRMED || booking.date >= now) {
+      if (booking.status !== BookingStatus.CONFIRMED) {
         throw new ApiError(
           httpStatus.BAD_REQUEST,
-          "Only past confirmed bookings can be marked as completed"
+          "Only confirmed bookings can be marked as completed"
         );
       }
     }

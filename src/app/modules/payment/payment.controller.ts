@@ -147,6 +147,20 @@ const getReceipt = catchAsync(async (req: Request & { user?: IAuthUser }, res: R
   res.redirect(receiptUrl);
 });
 
+const getGuidePayments = catchAsync(async (req: Request & { user?: IAuthUser }, res: Response) => {
+  const result = await PaymentService.getGuidePayments(req.query, req.user);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Guide payments fetched successfully!",
+    meta: result.meta,
+    data: {
+      payments: result.data,
+      totalEarnings: result.totalEarnings
+    },
+  });
+});
+
 export const PaymentController = {
   initiateStripePayment,
   initiateSSLCommerzPayment,
@@ -160,4 +174,5 @@ export const PaymentController = {
   sslCommerzCancel,
   getPaymentStatus,
   getReceipt,
+  getGuidePayments,
 };

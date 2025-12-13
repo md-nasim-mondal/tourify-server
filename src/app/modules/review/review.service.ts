@@ -12,40 +12,54 @@ const createReview = async (payload: any, user: IAuthUser) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, "User not found!");
   }
 
-  // Check if the tourist has a COMPLETED booking for this listing
-  const booking = await prisma.booking.findFirst({
-    where: {
-      listingId: payload.listingId,
-      touristId: user.id,
-      status: BookingStatus.COMPLETED, // Only completed tours can be reviewed
-    },
+  // Check if bookingId is provided
+  const bookingId = payload.bookingId;
+  if (!bookingId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Booking ID is required!");
+  }
+
+  // Verify Booking
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
   });
 
   if (!booking) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Booking not found!");
+  }
+
+  if (booking.touristId !== user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You can only review your own bookings!");
+  }
+  
+  if (booking.listingId !== payload.listingId) {
+     throw new ApiError(httpStatus.BAD_REQUEST, "Booking does not match listing!");
+  }
+
+  if (booking.status !== BookingStatus.COMPLETED) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "You can only review a tour after completing it!"
     );
   }
 
-  // Check if already reviewed
-  const isReviewed = await prisma.review.findFirst({
+  // Check if already reviewed this specific booking
+  const isReviewed = await prisma.review.findUnique({
     where: {
-      listingId: payload.listingId,
-      touristId: user.id,
+      bookingId: bookingId,
     },
   });
 
   if (isReviewed) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "You have already reviewed this listing!"
+      "You have already reviewed this booking!"
     );
   }
 
   const result = await prisma.review.create({
     data: {
       listingId: payload.listingId,
+      bookingId: bookingId,
       touristId: user.id,
       rating: payload.rating,
       comment: payload.comment,
@@ -68,6 +82,12 @@ const getMyReviews = async (user: IAuthUser) => {
     include: {
       listing: {
         select: { id: true, title: true },
+      },
+      tourist: {
+        select: {
+          name: true,
+          photo: true,
+        },
       },
     },
     orderBy: { createdAt: "desc" },

@@ -22,21 +22,17 @@ router.get(
   ReviewController.getAllReviews
 );
 
+// Get Reviews for a Listing (Public - no auth needed)
+router.get("/listing/:listingId", ReviewController.getReviewsByListing);
+
+// Get My Reviews (Tourist)
+router.get("/my", auth(UserRole.TOURIST), ReviewController.getMyReviews);
+
 // Get Single Review
 router.get(
   "/:id",
   auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.GUIDE, UserRole.TOURIST),
   ReviewController.getSingleReview
-);
-
-// Get Reviews for a Listing (Public - no auth needed)
-router.get("/listing/:listingId", ReviewController.getReviewsByListing);
-
-// Get My Reviews (Tourist)
-router.get(
-  "/my",
-  auth(UserRole.TOURIST),
-  ReviewController.getMyReviews
 );
 
 // Update Review

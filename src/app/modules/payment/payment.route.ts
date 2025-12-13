@@ -11,6 +11,12 @@ router.get(
   PaymentController.getAllPayments
 );
 
+router.get(
+  "/my-payments",
+  auth(UserRole.GUIDE),
+  PaymentController.getGuidePayments
+);
+
 // Tourist initiates Stripe payment
 router.post(
   "/stripe/initiate",
