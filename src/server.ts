@@ -11,7 +11,7 @@ let server: Server;
 
 async function main() {
   try {
-    server = app.listen( process.env.PORT || envVars.PORT, () => {
+    server = app.listen( Number(process.env.PORT) || envVars.PORT, () => {
       console.log(`🚀 Tourify Server is running on port ${envVars.PORT}`);
     });
 
