@@ -54,6 +54,10 @@ interface EnvConfig {
     ADMIN_EMAIL: string;
     ADMIN_PASSWORD: string;
   };
+  brevo: {
+    FROM: string;
+    API_KEY: string;
+  };
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -86,6 +90,8 @@ const loadEnvVariables = (): EnvConfig => {
     "FAIL_URL",
     "ADMIN_EMAIL",
     "ADMIN_PASSWORD",
+    "BREVO_FROM_EMAIL",
+    "BREVO_API_KEY",
   ];
 
   requiredEnvVariables.forEach((key) => {
@@ -145,6 +151,10 @@ const loadEnvVariables = (): EnvConfig => {
     admin: {
       ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
+    },
+    brevo: {
+      FROM: process.env.BREVO_FROM_EMAIL as string,
+      API_KEY: process.env.BREVO_API_KEY as string,
     },
   };
 };
