@@ -266,11 +266,18 @@ const confirmStripePayment = async (sessionId: string) => {
     },
   });
 
-  // Update Booking Status
-  await prisma.booking.update({
+  // Update Booking Status ONLY if it's PENDING
+  const booking = await prisma.booking.findUnique({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CONFIRMED },
+    select: { status: true },
   });
+
+  if (booking && booking.status === BookingStatus.PENDING) {
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+  }
 
   // Generate and store receipt
   await generateAndStoreReceipt(updatedPayment.id);
@@ -297,11 +304,18 @@ const confirmPayment = async (paymentId: string) => {
     },
   });
 
-  // Update Booking Status to CONFIRMED
-  await prisma.booking.update({
+  // Update Booking Status ONLY if it's PENDING
+  const booking = await prisma.booking.findUnique({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CONFIRMED },
+    select: { status: true },
   });
+
+  if (booking && booking.status === BookingStatus.PENDING) {
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+  }
 
   // Generate and store receipt
   await generateAndStoreReceipt(updatedPayment.id);
@@ -341,11 +355,18 @@ const handleSSLCommerzWebhook = async (payload: any) => {
     },
   });
 
-  // Update Booking
-  await prisma.booking.update({
+  // Update Booking Status ONLY if it's PENDING
+  const booking = await prisma.booking.findUnique({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CONFIRMED },
+    select: { status: true },
   });
+
+  if (booking && booking.status === BookingStatus.PENDING) {
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+  }
 
   // Generate and store receipt
   await generateAndStoreReceipt(updatedPayment.id);

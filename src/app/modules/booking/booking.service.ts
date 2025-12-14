@@ -68,48 +68,41 @@ const createBooking = async (payload: any, user: IAuthUser) => {
   }
 
   const bookingDate = new Date(payload.date);
-  const hour = bookingDate.getHours();
-  const minutes = bookingDate.getMinutes();
+  
+  // 1. Enforce specific time constraints? 
+  // User requested "Date Only", so we relax the strict "start of hour" and "7-5" checks.
+  // We assume the date provided is the intended booking date.
 
-  // 1. Enforce Start of Hour (e.g., 7:00, not 7:30)
-  if (minutes !== 0) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Bookings must start at the beginning of an hour (e.g., 8:00, not 8:30)!"
-    );
-  }
+  // 2. Check for capacity on THIS DAY (Start of Day to End of Day)
+  const startOfDay = new Date(bookingDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  const endOfDay = new Date(bookingDate);
+  endOfDay.setHours(23, 59, 59, 999);
 
-  // 2. Enforce Time Range (7 AM to 5 PM)
-  // Assuming 5 PM is the last start time or end time? "7 ta theke 5 ta porjonto" -> 7 to 5.
-  // Usually means availability window. Let's allow Start Times: 07:00 to 17:00.
-  if (hour < 7 || hour > 17) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Bookings are only allowed between 7 AM and 5 PM!"
-    );
-  }
-
-  // 3. Check for existing bookings on THIS SPECIFIC SLOT (Exact Date Match)
   const existingBookings = await prisma.booking.findMany({
     where: {
       listingId: payload.listingId,
-      date: bookingDate, // EXACT match for Time Slot
+      date: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
       status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
     },
   });
 
-  // Calculate total group size for this SPECIFIC SLOT
+  // Calculate total group size for this DAY
   const totalGroupSize =
     existingBookings.reduce(
       (sum, booking) => sum + (booking.groupSize || 1),
       0
     ) + groupSize;
 
-  // Check if total group size exceeds maxGroupSize limit
+  // Check if total group size exceeds maxGroupSize limit for the day
   if (totalGroupSize > listing.maxGroupSize) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Not enough capacity for ${groupSize} people at ${hour}:00. available: ${
+      `Not enough capacity for ${groupSize} people on this date. Available spots: ${
         listing.maxGroupSize - (totalGroupSize - groupSize)
       }!`
     );
@@ -302,6 +295,37 @@ const updateBookingStatus = async (
           "Only pending bookings can be accepted"
         );
       }
+
+      // Check Capacity Before Confirming
+      const bookingDate = new Date(booking.date);
+      const startOfDay = new Date(bookingDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(bookingDate.setHours(23, 59, 59, 999));
+
+      const existingConfirmedBookings = await prisma.booking.findMany({
+        where: {
+          listingId: booking.listingId,
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
+      });
+
+      const currentConfirmedCount = existingConfirmedBookings.reduce(
+        (sum, b) => sum + (b.groupSize || 1),
+        0
+      );
+
+      if (
+        currentConfirmedCount + (booking.groupSize || 1) >
+        (booking.listing.maxGroupSize || 0)
+      ) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Cannot confirm! Capacity exceeded. Confirmed/Completed: ${currentConfirmedCount}, Max: ${booking.listing.maxGroupSize}, This Request: ${booking.groupSize}`
+        );
+      }
     }
     if (status === BookingStatus.CANCELLED) {
       if (booking.status !== BookingStatus.PENDING) {
@@ -356,7 +380,7 @@ const getBookingDatesByGuide = async (guideId: string) => {
       listing: {
         guideId: guideId,
       },
-      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
     },
     select: {
       date: true,
@@ -370,6 +394,16 @@ const getBookingDatesByGuide = async (guideId: string) => {
 // 6. Get Booked Slots for a Listing on a Specific Date
 // Useful for frontend to disable fully booked hourly slots
 const getBookedSlots = async (listingId: string, date: string) => {
+  // Get listing details to know maxGroupSize
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { maxGroupSize: true },
+  });
+
+  if (!listing) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Listing not found!");
+  }
+
   const queryDate = new Date(date);
   const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
   const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
@@ -381,23 +415,23 @@ const getBookedSlots = async (listingId: string, date: string) => {
         gte: startOfDay,
         lte: endOfDay,
       },
-      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
     },
     select: {
-      date: true, // This holds the hour info
       groupSize: true,
     },
   });
 
-  // Aggregate by hour
-  const hourlyUsage: Record<number, number> = {};
-  
-  bookings.forEach(b => {
-    const h = new Date(b.date).getHours();
-    hourlyUsage[h] = (hourlyUsage[h] || 0) + (b.groupSize || 1);
-  });
+  // Calculate total booked
+  const totalBooked = bookings.reduce((sum, b) => sum + (b.groupSize || 1), 0);
+  const available = Math.max(0, (listing.maxGroupSize || 0) - totalBooked);
 
-  return hourlyUsage;
+  return {
+    date: startOfDay,
+    totalBooked,
+    maxGroupSize: listing.maxGroupSize,
+    available,
+  };
 };
 
 export const BookingService = {
