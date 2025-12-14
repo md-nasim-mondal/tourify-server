@@ -13,6 +13,12 @@ const emailSender = async (email: string, html: string) => {
     tls: {
       rejectUnauthorized: false,
     },
+    // Add these timeout settings
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    socketTimeout: 20000,     // 20 seconds
+    logger: true,             // Log information to console
+    debug: true,              // Include SMTP traffic in the logs
   });
 
   try {
@@ -23,8 +29,9 @@ const emailSender = async (email: string, html: string) => {
       //text: "Hello world?", // plain text body
       html, // html body
     });
+    console.log("Email sent successfully to:", email);
   } catch (error) {
-    console.error("Email sending failed:", error);
+    console.error("Email sending failed details:", JSON.stringify(error, null, 2));
     throw error;
   }
 };
