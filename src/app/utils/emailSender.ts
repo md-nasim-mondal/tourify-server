@@ -4,11 +4,11 @@ import envVars from "../../config/env";
 const emailSender = async (email: string, html: string) => {
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Use `true` for port 465, `false` for all other ports (like 587)
+    port: 587,
+    secure: false, // Use `true` for port 465, `false` for all other ports
     auth: {
       user: envVars.emailSender.EMAIL,
-      pass: envVars.emailSender.APP_PASS, // app password
+      pass: envVars.emailSender.APP_PASS,
     },
     tls: {
       rejectUnauthorized: false,
