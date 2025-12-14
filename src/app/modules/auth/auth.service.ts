@@ -74,12 +74,13 @@ const registerUser = async (payload: any) => {
     );
 
     console.log("Verification email sent successfully!", result);
-  } catch (error) {
+  } catch (error: any) {
     // If email fails to send, delete the user so they can try again
     await prisma.user.delete({
       where: { id: newUser.id },
     });
-    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to send verification email. Please try again.");
+    // Return specific error message for debugging
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Failed to send email: ${error.message || "Unknown error"}`);
   }
 
   return {
