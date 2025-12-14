@@ -33,6 +33,14 @@ interface EnvConfig {
     EMAIL: string;
     APP_PASS: string;
   };
+  smtp?: {
+    HOST?: string;
+    PORT?: string;
+    USER?: string;
+    PASS?: string;
+    FROM?: string;
+    SECURE?: string;
+  };
   ssl: {
     STORE_ID: string;
     STORE_PASS: string;
@@ -45,7 +53,7 @@ interface EnvConfig {
   admin: {
     ADMIN_EMAIL: string;
     ADMIN_PASSWORD: string;
-  }
+  };
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -77,7 +85,7 @@ const loadEnvVariables = (): EnvConfig => {
     "CANCEL_URL",
     "FAIL_URL",
     "ADMIN_EMAIL",
-    "ADMIN_PASSWORD"
+    "ADMIN_PASSWORD",
   ];
 
   requiredEnvVariables.forEach((key) => {
@@ -88,7 +96,7 @@ const loadEnvVariables = (): EnvConfig => {
 
   return {
     NODE_ENV: process.env.NODE_ENV as "development" | "production",
-    PORT: process.env.PORT as string || "5000",
+    PORT: (process.env.PORT as string) || "5000",
     DATABASE_URL: process.env.DATABASE_URL as string,
     CLIENT_URL: process.env.CLIENT_URL as string,
     SERVER_URL: process.env.SERVER_URL as string,
@@ -117,6 +125,14 @@ const loadEnvVariables = (): EnvConfig => {
       EMAIL: process.env.EMAIL_SENDER_EMAIL as string,
       APP_PASS: process.env.EMAIL_SENDER_APP_PASS as string,
     },
+    smtp: {
+      HOST: process.env.SMTP_HOST as string,
+      PORT: process.env.SMTP_PORT as string,
+      USER: process.env.SMTP_USER as string,
+      PASS: process.env.SMTP_PASS as string,
+      FROM: process.env.SMTP_FROM as string,
+      SECURE: process.env.SMTP_SECURE as string,
+    },
     ssl: {
       STORE_ID: process.env.STORE_ID as string,
       STORE_PASS: process.env.STORE_PASS as string,
@@ -126,10 +142,10 @@ const loadEnvVariables = (): EnvConfig => {
       CANCEL_URL: process.env.CANCEL_URL as string,
       FAIL_URL: process.env.FAIL_URL as string,
     },
-    admin:{
+    admin: {
       ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
-    }
+    },
   };
 };
 
