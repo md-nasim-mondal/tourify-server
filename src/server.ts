@@ -5,18 +5,24 @@ import dotenv from "dotenv";
 import axios from "axios";
 dotenv.config();
 
+// Suppress console.log in production
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+}
+
 let server: Server;
 
 async function main() {
   try {
     const port = Number(process.env.PORT) || 5000;
 
-    console.log("Attempting to seed admin...");
+    console.info("Attempting to seed admin...");
     await seedAdmin();
-    console.log("Admin seeded successfully");
+    console.info("Admin seeded successfully");
 
     server = app.listen(port, "0.0.0.0", () => {
-      console.log(`🚀 Tourify Server is running on port ${port}`);
+      console.info(`🚀 Tourify Server is running on port ${port}`);
+      console.info(`🔗 CLIENT_URL is set to: ${process.env.CLIENT_URL}`);
 
       // Self-Ping Keep-Alive (Every 9 minutes)
       const invokeSelfPing = async () => {
@@ -24,9 +30,9 @@ async function main() {
           // Use SERVER_URL if available (for production), otherwise localhost (development)
           const baseUrl = process.env.SERVER_URL || `http://localhost:${port}`;
           const pingUrl = `${baseUrl}/api/v1/listings?limit=1`; // Lightweight query
-          
+
           await axios.get(pingUrl);
-          console.log(`✅ Self-ping successful: ${pingUrl}`);
+          console.info(`✅ Self-ping successful: ${pingUrl}`);
         } catch (error) {
           console.error(`❌ Self-ping failed:`, error);
         }
@@ -43,7 +49,7 @@ async function main() {
         try {
           // Attempt seeding
           await seedAdmin();
-          console.log("Admin seeded successfully");
+          console.info("Admin seeded successfully");
         } catch (err) {
           console.error("Admin seeding failed:", err);
         }

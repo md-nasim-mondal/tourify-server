@@ -13,7 +13,7 @@ export const seedAdmin = async () => {
     });
 
     if (isAdminExist) {
-      console.log("Admin already exists!");
+      console.info("Admin already exists!");
       return;
     }
 
@@ -33,7 +33,7 @@ export const seedAdmin = async () => {
       },
     });
 
-    console.log("Admin created successfully!", admin);
+    console.info("Admin created successfully!", admin);
   } catch (error) {
     console.error(error);
   } finally {

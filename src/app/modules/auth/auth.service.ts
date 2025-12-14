@@ -62,18 +62,17 @@ const registerUser = async (payload: any) => {
   // Send Email
   const verifyLink = `${envVars.CLIENT_URL}/verify-email?token=${verifyToken}`;
   try {
-    const result = await emailSender(
+    await emailSender(
       newUser.email,
       `
       <div style="font-family: Arial, sans-serif; padding: 20px;">
         <h2>Welcome to Tourify, ${newUser.name}!</h2>
         <p>Please verify your email address to start your journey.</p>
-        <a href="${verifyLink}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
+        <a href="${verifyLink}" style="margin-top: 20px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
       </div>
       `
     );
 
-    console.log("Verification email sent successfully!", result);
   } catch (error: any) {
     // If email fails to send, delete the user so they can try again
     await prisma.user.delete({
