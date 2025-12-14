@@ -59,20 +59,26 @@ const registerUser = async (payload: any) => {
     "1d"
   );
 
-  // Send Email (Non-blocking)
+  // Send Email
   const verifyLink = `${envVars.CLIENT_URL}/verify-email?token=${verifyToken}`;
-  emailSender(
-    newUser.email,
-    `
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-      <h2>Welcome to Tourify, ${newUser.name}!</h2>
-      <p>Please verify your email address to start your journey.</p>
-      <a href="${verifyLink}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-    </div>
-    `
-  ).catch((err) => {
-    console.error(`❌ Background Email Failed for ${newUser.email}:`, err);
-  });
+  try {
+    await emailSender(
+      newUser.email,
+      `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Welcome to Tourify, ${newUser.name}!</h2>
+        <p>Please verify your email address to start your journey.</p>
+        <a href="${verifyLink}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
+      </div>
+      `
+    );
+  } catch (error) {
+    // If email fails to send, delete the user so they can try again
+    await prisma.user.delete({
+      where: { id: newUser.id },
+    });
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to send verification email. Please try again.");
+  }
 
   return {
     id: newUser.id,
@@ -220,8 +226,7 @@ const forgotPassword = async (payload: { email: string }) => {
 
   const resetPassLink = `${envVars.CLIENT_URL}/reset-password?userId=${userData.id}&token=${resetPassToken}`;
 
-  // Send Email (Non-blocking)
-  emailSender(
+  await emailSender(
     userData.email,
     `
     <div>
@@ -230,9 +235,7 @@ const forgotPassword = async (payload: { email: string }) => {
         <a href="${resetPassLink}">Reset Password</a>
     </div>
     `
-  ).catch((err) => {
-    console.error(`❌ Background Email Failed for ${userData.email}:`, err);
-  });
+  );
 };
 
 // 7. Reset Password
