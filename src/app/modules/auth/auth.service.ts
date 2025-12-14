@@ -6,7 +6,7 @@ import envVars from "../../../config/env";
 import { jwtHelpers } from "../../../helpers/jwtHelpers";
 import { prisma } from "../../../shared/prisma";
 import ApiError from "../../errors/ApiError";
-import emailSender from "../../utils/emailSender";
+import emailSender from "@/app/utils/emailSender";
 
 // 1. Register Tourist (With Email Verification)
 const registerUser = async (payload: any) => {
@@ -62,7 +62,7 @@ const registerUser = async (payload: any) => {
   // Send Email
   const verifyLink = `${envVars.CLIENT_URL}/verify-email?token=${verifyToken}`;
   try {
-    await emailSender(
+    const result = await emailSender(
       newUser.email,
       `
       <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -72,6 +72,8 @@ const registerUser = async (payload: any) => {
       </div>
       `
     );
+
+    console.log("Verification email sent successfully!", result);
   } catch (error) {
     // If email fails to send, delete the user so they can try again
     await prisma.user.delete({
