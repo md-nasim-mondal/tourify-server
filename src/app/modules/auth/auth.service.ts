@@ -59,9 +59,9 @@ const registerUser = async (payload: any) => {
     "1d"
   );
 
-  // Send Email
+  // Send Email (Non-blocking)
   const verifyLink = `${envVars.CLIENT_URL}/verify-email?token=${verifyToken}`;
-  await emailSender(
+  emailSender(
     newUser.email,
     `
     <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -70,7 +70,9 @@ const registerUser = async (payload: any) => {
       <a href="${verifyLink}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
     </div>
     `
-  );
+  ).catch((err) => {
+    console.error(`❌ Background Email Failed for ${newUser.email}:`, err);
+  });
 
   return {
     id: newUser.id,
@@ -218,7 +220,8 @@ const forgotPassword = async (payload: { email: string }) => {
 
   const resetPassLink = `${envVars.CLIENT_URL}/reset-password?userId=${userData.id}&token=${resetPassToken}`;
 
-  await emailSender(
+  // Send Email (Non-blocking)
+  emailSender(
     userData.email,
     `
     <div>
@@ -227,7 +230,9 @@ const forgotPassword = async (payload: { email: string }) => {
         <a href="${resetPassLink}">Reset Password</a>
     </div>
     `
-  );
+  ).catch((err) => {
+    console.error(`❌ Background Email Failed for ${userData.email}:`, err);
+  });
 };
 
 // 7. Reset Password
